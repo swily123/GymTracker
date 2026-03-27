@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.Flow
 interface ExerciseDao {
 
     // Flow — как Observable в Unity, автоматически обновляет UI при изменении данных
-    @Query("SELECT * FROM exercises ORDER BY name ASC")
+    @Query("SELECT * FROM exercises ORDER BY id ASC")
     fun getAllExercises(): Flow<List<Exercise>>
 
     @Query("SELECT * FROM exercises WHERE id = :id")

@@ -21,3 +21,24 @@ val TextDarkGray = Color(0xFF6B7280)    // Подсказки, хинты
 val CardOrange = Color(0xFFE8593C)
 val CardBlue = Color(0xFF3B82F6)
 val CardPurple = Color(0xFF8B5CF6)
+
+// Палитра цветов для программ тренировок
+val ProgramColorPalette = listOf(
+    CardOrange,
+    Color(0xFFF97316),
+    Color(0xFFEAB308),
+    Color(0xFF22C55E),
+    Color(0xFF14B8A6),
+    CardBlue,
+    Color(0xFF6366F1),
+    CardPurple,
+    Color(0xFFEC4899)
+)
+
+// Конвертация Color в HEX-строку для хранения в БД
+fun Color.toHex(): String {
+    val red = (this.red * 255).toInt()
+    val green = (this.green * 255).toInt()
+    val blue = (this.blue * 255).toInt()
+    return String.format("#%02X%02X%02X", red, green, blue)
+}

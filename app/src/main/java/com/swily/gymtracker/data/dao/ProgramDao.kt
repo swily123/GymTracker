@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.Flow
 interface ProgramDao {
 
     // Flow — как Observable в Unity, автоматически обновляет UI при изменении данных
-    @Query("SELECT * FROM program ORDER BY name ASC")
+    @Query("SELECT * FROM program ORDER BY id ASC")
     fun getAllPrograms(): Flow<List<Program>>
 
     @Query("SELECT * FROM program WHERE id = :id")

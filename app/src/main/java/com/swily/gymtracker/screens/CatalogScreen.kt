@@ -1,7 +1,9 @@
 package com.swily.gymtracker.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,14 +23,23 @@ import com.swily.gymtracker.data.model.Program
 import com.swily.gymtracker.ui.theme.*
 import com.swily.gymtracker.viewmodel.CatalogViewModel
 
+// TODO: Запоминать позицию скролла при возврате из редактирования
 @Composable
-fun CatalogScreen(viewModel: CatalogViewModel = viewModel()) {
-    // Подписываемся на данные из ViewModel
+fun CatalogScreen(
+    viewModel: CatalogViewModel = viewModel(),
+    initialTab: Int = 0,
+    onTabChanged: (Int) -> Unit = {},
+    onExerciseClick: (Exercise) -> Unit = {},
+    onCreateExercise: () -> Unit = {},
+    onProgramEditClick: (Program) -> Unit = {},
+    onCreateProgram: () -> Unit = {},
+    onProgramDelete: (Program) -> Unit = {},
+    onExerciseDelete: (Exercise) -> Unit = {}
+) {
     val programs by viewModel.allPrograms.collectAsState(initial = emptyList())
     val exercises by viewModel.allExercises.collectAsState(initial = emptyList())
 
-    // Какая вкладка активна: 0 = Тренировки, 1 = Упражнения
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(initialTab) }
 
     Column(
         modifier = Modifier
@@ -38,7 +49,6 @@ fun CatalogScreen(viewModel: CatalogViewModel = viewModel()) {
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Заголовок
         Text(
             text = "Каталог",
             color = TextWhite,
@@ -48,7 +58,6 @@ fun CatalogScreen(viewModel: CatalogViewModel = viewModel()) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Вкладки: Тренировки | Упражнения
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -56,27 +65,41 @@ fun CatalogScreen(viewModel: CatalogViewModel = viewModel()) {
             TabButton(
                 text = "Тренировки",
                 isSelected = selectedTab == 0,
-                onClick = { selectedTab = 0 }
+                onClick = {
+                    selectedTab = 0
+                    onTabChanged(0)
+                }
             )
             TabButton(
                 text = "Упражнения",
                 isSelected = selectedTab == 1,
-                onClick = { selectedTab = 1 }
+                onClick = {
+                    selectedTab = 1
+                    onTabChanged(1)
+                }
             )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Контент в зависимости от вкладки
         if (selectedTab == 0) {
-            ProgramsList(programs = programs)
+            ProgramsList(
+                programs = programs,
+                onProgramEditClick = onProgramEditClick,
+                onProgramDelete = onProgramDelete,
+                onCreateClick = onCreateProgram
+            )
         } else {
-            ExercisesList(exercises = exercises)
+            ExercisesList(
+                exercises = exercises,
+                onExerciseClick = onExerciseClick,
+                onExerciseDelete = onExerciseDelete,
+                onCreateClick = onCreateExercise
+            )
         }
     }
 }
 
-// Кнопка вкладки
 @Composable
 fun TabButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Box(
@@ -95,31 +118,61 @@ fun TabButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     }
 }
 
-// Список программ тренировок
 @Composable
-fun ProgramsList(programs: List<Program>) {
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(programs) { program ->
-            ProgramCard(program = program)
-        }
+fun ProgramsList(
+    programs: List<Program>,
+    onProgramEditClick: (Program) -> Unit,
+    onProgramDelete: (Program) -> Unit,
+    onCreateClick: () -> Unit
+) {
+    // Диалог подтверждения удаления
+    var programToDelete by remember { mutableStateOf<Program?>(null) }
 
-        // Кнопка "Создать свою программу"
+    if (programToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { programToDelete = null },
+            title = { Text("Удалить программу?", color = TextWhite) },
+            text = { Text("\"${programToDelete?.name}\" будет удалена навсегда", color = TextGray) },
+            confirmButton = {
+                TextButton(onClick = {
+                    programToDelete?.let { onProgramDelete(it) }
+                    programToDelete = null
+                }) {
+                    Text("Удалить", color = Orange)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { programToDelete = null }) {
+                    Text("Отмена", color = TextGray)
+                }
+            },
+            containerColor = DarkSurface
+        )
+    }
+
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        items(programs) { program ->
+            ProgramCard(
+                program = program,
+                onEditClick = { onProgramEditClick(program) },
+                onLongClick = { programToDelete = program }
+            )
+        }
         item {
             Spacer(modifier = Modifier.height(4.dp))
-            CreateButton(text = "Создать свою программу")
+            CreateButton(text = "Создать свою программу", onClick = onCreateClick)
         }
-
-        // Отступ внизу чтобы контент не прятался за навбар
         item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }
 
-// Карточка программы
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ProgramCard(program: Program) {
-    // Парсим цвет из hex-строки
+fun ProgramCard(
+    program: Program,
+    onEditClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
     val cardColor = try {
         Color(android.graphics.Color.parseColor(program.colorHex))
     } catch (e: Exception) {
@@ -131,98 +184,139 @@ fun ProgramCard(program: Program) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(cardColor)
-            .clickable { /* TODO: запуск тренировки */ }
+            .combinedClickable(
+                onClick = { /* TODO: запуск тренировки */ },
+                onLongClick = onLongClick
+            )
             .padding(16.dp)
     ) {
         Column {
-            Text(
-                text = program.name,
-                color = TextWhite,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = program.description,
-                color = TextWhite.copy(alpha = 0.8f),
-                fontSize = 14.sp
-            )
-            Spacer(modifier = Modifier.height(8.dp))
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "~${program.estimatedMinutes} мин",
-                    color = TextWhite.copy(alpha = 0.7f),
-                    fontSize = 12.sp
+                    text = program.name,
+                    color = TextWhite,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.White.copy(alpha = 0.2f))
+                        .clickable { onEditClick() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("✏", fontSize = 14.sp)
+                }
+            }
+            if (program.description.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = program.description,
+                    color = TextWhite.copy(alpha = 0.8f),
+                    fontSize = 14.sp
                 )
             }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                // TODO: Рассчитывать время тренировки на основе упражнений и отдыха
+                text = "~${program.estimatedMinutes} мин",
+                color = TextWhite.copy(alpha = 0.7f),
+                fontSize = 12.sp
+            )
         }
     }
 }
 
-// Список упражнений
 @Composable
-fun ExercisesList(exercises: List<Exercise>) {
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(exercises) { exercise ->
-            ExerciseCard(exercise = exercise)
-        }
+fun ExercisesList(
+    exercises: List<Exercise>,
+    onExerciseClick: (Exercise) -> Unit,
+    onExerciseDelete: (Exercise) -> Unit,
+    onCreateClick: () -> Unit
+) {
+    var exerciseToDelete by remember { mutableStateOf<Exercise?>(null) }
 
+    if (exerciseToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { exerciseToDelete = null },
+            title = { Text("Удалить упражнение?", color = TextWhite) },
+            text = { Text("\"${exerciseToDelete?.name}\" будет удалено навсегда", color = TextGray) },
+            confirmButton = {
+                TextButton(onClick = {
+                    exerciseToDelete?.let { onExerciseDelete(it) }
+                    exerciseToDelete = null
+                }) {
+                    Text("Удалить", color = Orange)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { exerciseToDelete = null }) {
+                    Text("Отмена", color = TextGray)
+                }
+            },
+            containerColor = DarkSurface
+        )
+    }
+
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(exercises) { exercise ->
+            ExerciseCard(
+                exercise = exercise,
+                onClick = { onExerciseClick(exercise) },
+                onLongClick = { exerciseToDelete = exercise }
+            )
+        }
         item {
             Spacer(modifier = Modifier.height(4.dp))
-            CreateButton(text = "Создать упражнение")
+            CreateButton(text = "Создать упражнение", onClick = onCreateClick)
         }
-
         item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }
 
-// Карточка упражнения
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ExerciseCard(exercise: Exercise) {
+fun ExerciseCard(exercise: Exercise, onClick: () -> Unit, onLongClick: () -> Unit = {}) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(DarkSurface)
-            .clickable { /* TODO: редактирование упражнения */ }
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(16.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = exercise.name,
-                    color = TextWhite,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${exercise.defaultReps} повторений · ${exercise.defaultWeightKg.toInt()} кг",
-                    color = TextGray,
-                    fontSize = 13.sp
-                )
-            }
+        Column {
+            Text(
+                text = exercise.name,
+                color = TextWhite,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${exercise.defaultReps} повторений · ${exercise.defaultWeightKg.toInt()} кг",
+                color = TextGray,
+                fontSize = 13.sp
+            )
         }
     }
 }
 
-// Кнопка "Создать..."
 @Composable
-fun CreateButton(text: String) {
+fun CreateButton(text: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(DarkSurfaceLight)
-            .clickable { /* TODO: создание */ }
+            .clickable { onClick() }
             .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
