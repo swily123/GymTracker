@@ -34,7 +34,8 @@ fun CatalogScreen(
     onProgramEditClick: (Program) -> Unit = {},
     onCreateProgram: () -> Unit = {},
     onProgramDelete: (Program) -> Unit = {},
-    onExerciseDelete: (Exercise) -> Unit = {}
+    onExerciseDelete: (Exercise) -> Unit = {},
+    onProgramClick: (Program) -> Unit = {}
 ) {
     val programs by viewModel.allPrograms.collectAsState(initial = emptyList())
     val exercises by viewModel.allExercises.collectAsState(initial = emptyList())
@@ -85,6 +86,7 @@ fun CatalogScreen(
         if (selectedTab == 0) {
             ProgramsList(
                 programs = programs,
+                onProgramClick = onProgramClick,
                 onProgramEditClick = onProgramEditClick,
                 onProgramDelete = onProgramDelete,
                 onCreateClick = onCreateProgram
@@ -121,6 +123,7 @@ fun TabButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
 @Composable
 fun ProgramsList(
     programs: List<Program>,
+    onProgramClick: (Program) -> Unit,
     onProgramEditClick: (Program) -> Unit,
     onProgramDelete: (Program) -> Unit,
     onCreateClick: () -> Unit
@@ -154,6 +157,7 @@ fun ProgramsList(
         items(programs) { program ->
             ProgramCard(
                 program = program,
+                onClick = { onProgramClick(program) },
                 onEditClick = { onProgramEditClick(program) },
                 onLongClick = { programToDelete = program }
             )
@@ -170,6 +174,7 @@ fun ProgramsList(
 @Composable
 fun ProgramCard(
     program: Program,
+    onClick: () -> Unit,
     onEditClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
@@ -185,7 +190,7 @@ fun ProgramCard(
             .clip(RoundedCornerShape(16.dp))
             .background(cardColor)
             .combinedClickable(
-                onClick = { /* TODO: запуск тренировки */ },
+                onClick = onClick,
                 onLongClick = onLongClick
             )
             .padding(16.dp)

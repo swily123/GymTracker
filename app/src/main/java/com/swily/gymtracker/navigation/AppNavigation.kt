@@ -17,6 +17,8 @@ import com.swily.gymtracker.ui.theme.DarkBg
 import com.swily.gymtracker.ui.theme.DarkSurface
 import com.swily.gymtracker.ui.theme.TextGray
 import com.swily.gymtracker.viewmodel.CatalogViewModel
+import com.swily.gymtracker.viewmodel.WorkoutViewModel
+import androidx.compose.runtime.LaunchedEffect
 
 @Composable
 fun AppNavigation() {
@@ -32,10 +34,11 @@ fun AppNavigation() {
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val hideBottomBar = currentRoute in listOf("exercise_edit", "exercise_create", "program_edit", "program_create")
+    val hideBottomBar = currentRoute in listOf("exercise_edit", "exercise_create", "program_edit", "program_create", "workout")
 
     var selectedExercise by remember { mutableStateOf<Exercise?>(null) }
     var selectedProgram by remember { mutableStateOf<Program?>(null) }
+    var workoutProgramId by remember { mutableStateOf<Long?>(null) }
 
     // Запоминаем активную вкладку каталога (0 = Тренировки, 1 = Упражнения)
     var catalogTab by remember { mutableIntStateOf(0) }
@@ -105,8 +108,11 @@ fun AppNavigation() {
                     },
                     onProgramDelete = { program ->
                         catalogViewModel.deleteProgram(program)
-                    }
-
+                    },
+                    onProgramClick = { program ->
+                        workoutProgramId = program.id
+                        navController.navigate("workout")
+                    },
                 )
             }
 
@@ -172,6 +178,24 @@ fun AppNavigation() {
                         navController.popBackStack()
                     },
                     onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("workout") {
+                val workoutViewModel: WorkoutViewModel = viewModel()
+
+                LaunchedEffect(workoutProgramId) {
+                    workoutProgramId?.let { programId ->
+                        workoutViewModel.startWorkout(programId)
+                    }
+                }
+
+                WorkoutScreen(
+                    viewModel = workoutViewModel,
+                    onBack = { navController.popBackStack() },
+                    onFinished = {
+                        navController.popBackStack("catalog", inclusive = false)
+                    }
                 )
             }
         }
