@@ -16,6 +16,8 @@ import com.swily.gymtracker.screens.*
 import com.swily.gymtracker.ui.theme.*
 import com.swily.gymtracker.viewmodel.CatalogViewModel
 import com.swily.gymtracker.viewmodel.WorkoutViewModel
+import com.swily.gymtracker.data.model.Warmup
+import com.swily.gymtracker.data.model.WarmupExercise
 
 @Composable
 fun AppNavigation() {
@@ -34,13 +36,17 @@ fun AppNavigation() {
     val hideBottomBar = currentRoute in listOf(
         "exercise_edit", "exercise_create",
         "program_edit", "program_create",
-        "workout"
+        "workout",
+        "warmup_edit", "warmup_create",
+        "warmup_exercise_edit", "warmup_exercise_create"
     )
 
     var selectedExercise by remember { mutableStateOf<Exercise?>(null) }
     var selectedProgram by remember { mutableStateOf<Program?>(null) }
     var catalogTab by remember { mutableIntStateOf(0) }
     var workoutProgramId by remember { mutableStateOf<Long?>(null) }
+    var selectedWarmup by remember { mutableStateOf<Warmup?>(null) }
+    var selectedWarmupExercise by remember { mutableStateOf<WarmupExercise?>(null) }
 
     // Диалог подтверждения запуска тренировки
     var showStartWorkoutDialog by remember { mutableStateOf(false) }
@@ -145,6 +151,28 @@ fun AppNavigation() {
                     },
                     onExerciseDelete = { exercise ->
                         catalogViewModel.deleteExercise(exercise)
+                    },
+                    onWarmupEditClick = { warmup ->
+                        selectedWarmup = warmup
+                        navController.navigate("warmup_edit")
+                    },
+                    onCreateWarmup = {
+                        selectedWarmup = null
+                        navController.navigate("warmup_create")
+                    },
+                    onWarmupDelete = { warmup ->
+                        catalogViewModel.deleteWarmup(warmup)
+                    },
+                    onWarmupExerciseClick = { exercise ->
+                        selectedWarmupExercise = exercise
+                        navController.navigate("warmup_exercise_edit")
+                    },
+                    onCreateWarmupExercise = {
+                        selectedWarmupExercise = null
+                        navController.navigate("warmup_exercise_create")
+                    },
+                    onWarmupExerciseDelete = { exercise ->
+                        catalogViewModel.deleteWarmupExercise(exercise)
                     }
                 )
             }
@@ -231,6 +259,62 @@ fun AppNavigation() {
                     onFinished = {
                         navController.popBackStack()
                     }
+                )
+            }
+
+            composable("warmup_exercise_create") {
+                WarmupExerciseEditScreen(
+                    warmupExercise = null,
+                    onSave = { exercise ->
+                        catalogViewModel.insertWarmupExercise(exercise)
+                        navController.popBackStack()
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("warmup_exercise_edit") {
+                WarmupExerciseEditScreen(
+                    warmupExercise = selectedWarmupExercise,
+                    onSave = { exercise ->
+                        catalogViewModel.updateWarmupExercise(exercise)
+                        navController.popBackStack()
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("warmup_create") {
+                val warmupExercises by catalogViewModel.allWarmupExercises.collectAsState(initial = emptyList())
+                WarmupEditScreen(
+                    warmup = null,
+                    allWarmupExercises = warmupExercises,
+                    selectedExerciseIds = emptyList(),
+                    onSave = { name, exerciseIds ->
+                        catalogViewModel.insertWarmup(Warmup(name = name), exerciseIds)
+                        navController.popBackStack()
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("warmup_edit") {
+                val warmupExercises by catalogViewModel.allWarmupExercises.collectAsState(initial = emptyList())
+                val warmupContents by selectedWarmup?.let {
+                    catalogViewModel.getExercisesForWarmup(it.id).collectAsState(initial = emptyList())
+                } ?: remember { mutableStateOf(emptyList()) }
+
+                WarmupEditScreen(
+                    warmup = selectedWarmup,
+                    allWarmupExercises = warmupExercises,
+                    selectedExerciseIds = warmupContents.map { it.id },
+                    onSave = { name, exerciseIds ->
+                        selectedWarmup?.let { warmup ->
+                            catalogViewModel.updateWarmup(warmup.copy(name = name), exerciseIds)
+                        }
+                        navController.popBackStack()
+                    },
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

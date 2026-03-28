@@ -9,6 +9,9 @@ import com.swily.gymtracker.data.model.Program
 import com.swily.gymtracker.data.model.ProgramExercise
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import com.swily.gymtracker.data.model.Warmup
+import com.swily.gymtracker.data.model.WarmupContent
+import com.swily.gymtracker.data.model.WarmupExercise
 
 class CatalogViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -16,6 +19,12 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
     private val exerciseDao = database.exerciseDao()
     private val programDao = database.programDao()
     private val programExerciseDao = database.programExerciseDao()
+    private val warmupDao = database.warmupDao()
+    private val warmupExerciseDao = database.warmupExerciseDao()
+    private val warmupContentDao = database.warmupContentDao()
+
+    val allWarmups: Flow<List<Warmup>> = warmupDao.getAllWarmups()
+    val allWarmupExercises: Flow<List<WarmupExercise>> = warmupExerciseDao.getAllWarmupExercises()
 
     val allPrograms: Flow<List<Program>> = programDao.getAllPrograms()
     val allExercises: Flow<List<Exercise>> = exerciseDao.getAllExercises()
@@ -84,5 +93,67 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
 
     fun getExercisesForProgram(programId: Long): Flow<List<ProgramExercise>> {
         return programExerciseDao.getExercisesForProgram(programId)
+    }
+
+    // --- Упражнения разминки ---
+
+    fun insertWarmupExercise(warmupExercise: WarmupExercise) {
+        viewModelScope.launch {
+            warmupExerciseDao.insertWarmupExercise(warmupExercise)
+        }
+    }
+
+    fun updateWarmupExercise(warmupExercise: WarmupExercise) {
+        viewModelScope.launch {
+            warmupExerciseDao.updateWarmupExercise(warmupExercise)
+        }
+    }
+
+    fun deleteWarmupExercise(warmupExercise: WarmupExercise) {
+        viewModelScope.launch {
+            warmupExerciseDao.deleteWarmupExercise(warmupExercise)
+        }
+    }
+
+    // --- Разминки ---
+
+    fun insertWarmup(warmup: Warmup, warmupExerciseIds: List<Long>) {
+        viewModelScope.launch {
+            val warmupId = warmupDao.insertWarmup(warmup)
+            val contents = warmupExerciseIds.mapIndexed { index, exerciseId ->
+                WarmupContent(
+                    warmupId = warmupId,
+                    warmupExerciseId = exerciseId,
+                    orderIndex = index
+                )
+            }
+            warmupContentDao.insertAll(contents)
+        }
+    }
+
+    fun updateWarmup(warmup: Warmup, warmupExerciseIds: List<Long>) {
+        viewModelScope.launch {
+            warmupDao.updateWarmup(warmup)
+            warmupContentDao.deleteByWarmupId(warmup.id)
+            val contents = warmupExerciseIds.mapIndexed { index, exerciseId ->
+                WarmupContent(
+                    warmupId = warmup.id,
+                    warmupExerciseId = exerciseId,
+                    orderIndex = index
+                )
+            }
+            warmupContentDao.insertAll(contents)
+        }
+    }
+
+    fun deleteWarmup(warmup: Warmup) {
+        viewModelScope.launch {
+            warmupContentDao.deleteByWarmupId(warmup.id)
+            warmupDao.deleteWarmup(warmup)
+        }
+    }
+
+    fun getExercisesForWarmup(warmupId: Long): Flow<List<WarmupExercise>> {
+        return warmupContentDao.getExercisesForWarmup(warmupId)
     }
 }

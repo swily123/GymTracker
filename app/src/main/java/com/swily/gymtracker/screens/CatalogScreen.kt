@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -20,6 +21,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.swily.gymtracker.data.model.Exercise
 import com.swily.gymtracker.data.model.Program
+import com.swily.gymtracker.data.model.Warmup
+import com.swily.gymtracker.data.model.WarmupExercise
 import com.swily.gymtracker.ui.theme.*
 import com.swily.gymtracker.viewmodel.CatalogViewModel
 
@@ -35,10 +38,19 @@ fun CatalogScreen(
     onCreateProgram: () -> Unit = {},
     onProgramDelete: (Program) -> Unit = {},
     onExerciseDelete: (Exercise) -> Unit = {},
-    onProgramClick: (Program) -> Unit = {}
+    onProgramClick: (Program) -> Unit = {},
+    onWarmupClick: (Warmup) -> Unit = {},
+    onWarmupEditClick: (Warmup) -> Unit = {},
+    onCreateWarmup: () -> Unit = {},
+    onWarmupDelete: (Warmup) -> Unit = {},
+    onWarmupExerciseClick: (WarmupExercise) -> Unit = {},
+    onCreateWarmupExercise: () -> Unit = {},
+    onWarmupExerciseDelete: (WarmupExercise) -> Unit = {}
 ) {
     val programs by viewModel.allPrograms.collectAsState(initial = emptyList())
     val exercises by viewModel.allExercises.collectAsState(initial = emptyList())
+    val warmups by viewModel.allWarmups.collectAsState(initial = emptyList())
+    val warmupExercises by viewModel.allWarmupExercises.collectAsState(initial = emptyList())
 
     var selectedTab by remember { mutableIntStateOf(initialTab) }
 
@@ -59,44 +71,50 @@ fun CatalogScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
+        // Горизонтальный скролл для 4 вкладок
+        LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            TabButton(
-                text = "Тренировки",
-                isSelected = selectedTab == 0,
-                onClick = {
-                    selectedTab = 0
-                    onTabChanged(0)
-                }
-            )
-            TabButton(
-                text = "Упражнения",
-                isSelected = selectedTab == 1,
-                onClick = {
-                    selectedTab = 1
-                    onTabChanged(1)
-                }
-            )
+            val tabs = listOf("Тренировки", "Упражнения", "Разминки", "Упр. разминки")
+            items(tabs.size) { index ->
+                TabButton(
+                    text = tabs[index],
+                    isSelected = selectedTab == index,
+                    onClick = {
+                        selectedTab = index
+                        onTabChanged(index)
+                    }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (selectedTab == 0) {
-            ProgramsList(
+        when (selectedTab) {
+            0 -> ProgramsList(
                 programs = programs,
                 onProgramClick = onProgramClick,
                 onProgramEditClick = onProgramEditClick,
                 onProgramDelete = onProgramDelete,
                 onCreateClick = onCreateProgram
             )
-        } else {
-            ExercisesList(
+            1 -> ExercisesList(
                 exercises = exercises,
                 onExerciseClick = onExerciseClick,
                 onExerciseDelete = onExerciseDelete,
                 onCreateClick = onCreateExercise
+            )
+            2 -> WarmupsList(
+                warmups = warmups,
+                onWarmupEditClick = onWarmupEditClick,
+                onWarmupDelete = onWarmupDelete,
+                onCreateClick = onCreateWarmup
+            )
+            3 -> WarmupExercisesList(
+                exercises = warmupExercises,
+                onExerciseClick = onWarmupExerciseClick,
+                onExerciseDelete = onWarmupExerciseDelete,
+                onCreateClick = onCreateWarmupExercise
             )
         }
     }
@@ -120,6 +138,8 @@ fun TabButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     }
 }
 
+// ==================== ПРОГРАММЫ ====================
+
 @Composable
 fun ProgramsList(
     programs: List<Program>,
@@ -128,7 +148,6 @@ fun ProgramsList(
     onProgramDelete: (Program) -> Unit,
     onCreateClick: () -> Unit
 ) {
-    // Диалог подтверждения удаления
     var programToDelete by remember { mutableStateOf<Program?>(null) }
 
     if (programToDelete != null) {
@@ -140,14 +159,10 @@ fun ProgramsList(
                 TextButton(onClick = {
                     programToDelete?.let { onProgramDelete(it) }
                     programToDelete = null
-                }) {
-                    Text("Удалить", color = Orange)
-                }
+                }) { Text("Удалить", color = Orange) }
             },
             dismissButton = {
-                TextButton(onClick = { programToDelete = null }) {
-                    Text("Отмена", color = TextGray)
-                }
+                TextButton(onClick = { programToDelete = null }) { Text("Отмена", color = TextGray) }
             },
             containerColor = DarkSurface
         )
@@ -180,19 +195,14 @@ fun ProgramCard(
 ) {
     val cardColor = try {
         Color(android.graphics.Color.parseColor(program.colorHex))
-    } catch (e: Exception) {
-        Orange
-    }
+    } catch (e: Exception) { Orange }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(cardColor)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            )
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(16.dp)
     ) {
         Column {
@@ -200,12 +210,7 @@ fun ProgramCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = program.name,
-                    color = TextWhite,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Text(text = program.name, color = TextWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Box(
                     modifier = Modifier
                         .size(32.dp)
@@ -213,17 +218,11 @@ fun ProgramCard(
                         .background(Color.White.copy(alpha = 0.2f))
                         .clickable { onEditClick() },
                     contentAlignment = Alignment.Center
-                ) {
-                    Text("✏", fontSize = 14.sp)
-                }
+                ) { Text("✏", fontSize = 14.sp) }
             }
             if (program.description.isNotBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = program.description,
-                    color = TextWhite.copy(alpha = 0.8f),
-                    fontSize = 14.sp
-                )
+                Text(text = program.description, color = TextWhite.copy(alpha = 0.8f), fontSize = 14.sp)
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -235,6 +234,8 @@ fun ProgramCard(
         }
     }
 }
+
+// ==================== УПРАЖНЕНИЯ ====================
 
 @Composable
 fun ExercisesList(
@@ -254,14 +255,10 @@ fun ExercisesList(
                 TextButton(onClick = {
                     exerciseToDelete?.let { onExerciseDelete(it) }
                     exerciseToDelete = null
-                }) {
-                    Text("Удалить", color = Orange)
-                }
+                }) { Text("Удалить", color = Orange) }
             },
             dismissButton = {
-                TextButton(onClick = { exerciseToDelete = null }) {
-                    Text("Отмена", color = TextGray)
-                }
+                TextButton(onClick = { exerciseToDelete = null }) { Text("Отмена", color = TextGray) }
             },
             containerColor = DarkSurface
         )
@@ -291,28 +288,152 @@ fun ExerciseCard(exercise: Exercise, onClick: () -> Unit, onLongClick: () -> Uni
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(DarkSurface)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            )
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(16.dp)
     ) {
         Column {
-            Text(
-                text = exercise.name,
-                color = TextWhite,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Text(text = exercise.name, color = TextWhite, fontSize = 16.sp, fontWeight = FontWeight.Medium)
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "${exercise.defaultReps} повторений · ${exercise.defaultWeightKg.toInt()} кг",
-                color = TextGray,
-                fontSize = 13.sp
+                color = TextGray, fontSize = 13.sp
             )
         }
     }
 }
+
+// ==================== РАЗМИНКИ ====================
+
+@Composable
+fun WarmupsList(
+    warmups: List<Warmup>,
+    onWarmupEditClick: (Warmup) -> Unit,
+    onWarmupDelete: (Warmup) -> Unit,
+    onCreateClick: () -> Unit
+) {
+    var warmupToDelete by remember { mutableStateOf<Warmup?>(null) }
+
+    if (warmupToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { warmupToDelete = null },
+            title = { Text("Удалить разминку?", color = TextWhite) },
+            text = { Text("\"${warmupToDelete?.name}\" будет удалена навсегда", color = TextGray) },
+            confirmButton = {
+                TextButton(onClick = {
+                    warmupToDelete?.let { onWarmupDelete(it) }
+                    warmupToDelete = null
+                }) { Text("Удалить", color = Orange) }
+            },
+            dismissButton = {
+                TextButton(onClick = { warmupToDelete = null }) { Text("Отмена", color = TextGray) }
+            },
+            containerColor = DarkSurface
+        )
+    }
+
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(warmups) { warmup ->
+            WarmupCard(
+                warmup = warmup,
+                onClick = { onWarmupEditClick(warmup) },
+                onLongClick = { warmupToDelete = warmup }
+            )
+        }
+        item {
+            Spacer(modifier = Modifier.height(4.dp))
+            CreateButton(text = "Создать разминку", onClick = onCreateClick)
+        }
+        item { Spacer(modifier = Modifier.height(16.dp)) }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun WarmupCard(warmup: Warmup, onClick: () -> Unit, onLongClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(DarkSurface)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(16.dp)
+    ) {
+        Text(text = warmup.name, color = TextWhite, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+// ==================== УПРАЖНЕНИЯ РАЗМИНКИ ====================
+
+@Composable
+fun WarmupExercisesList(
+    exercises: List<WarmupExercise>,
+    onExerciseClick: (WarmupExercise) -> Unit,
+    onExerciseDelete: (WarmupExercise) -> Unit,
+    onCreateClick: () -> Unit
+) {
+    var exerciseToDelete by remember { mutableStateOf<WarmupExercise?>(null) }
+
+    if (exerciseToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { exerciseToDelete = null },
+            title = { Text("Удалить упр. разминки?", color = TextWhite) },
+            text = { Text("\"${exerciseToDelete?.name}\" будет удалено навсегда", color = TextGray) },
+            confirmButton = {
+                TextButton(onClick = {
+                    exerciseToDelete?.let { onExerciseDelete(it) }
+                    exerciseToDelete = null
+                }) { Text("Удалить", color = Orange) }
+            },
+            dismissButton = {
+                TextButton(onClick = { exerciseToDelete = null }) { Text("Отмена", color = TextGray) }
+            },
+            containerColor = DarkSurface
+        )
+    }
+
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(exercises) { exercise ->
+            WarmupExerciseCard(
+                exercise = exercise,
+                onClick = { onExerciseClick(exercise) },
+                onLongClick = { exerciseToDelete = exercise }
+            )
+        }
+        item {
+            Spacer(modifier = Modifier.height(4.dp))
+            CreateButton(text = "Создать упр. разминки", onClick = onCreateClick)
+        }
+        item { Spacer(modifier = Modifier.height(16.dp)) }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun WarmupExerciseCard(
+    exercise: WarmupExercise,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(DarkSurface)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(16.dp)
+    ) {
+        Column {
+            Text(text = exercise.name, color = TextWhite, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${exercise.reps} повторений",
+                color = TextGray, fontSize = 13.sp
+            )
+        }
+    }
+}
+
+// ==================== ОБЩИЕ ====================
 
 @Composable
 fun CreateButton(text: String, onClick: () -> Unit) {
@@ -325,10 +446,6 @@ fun CreateButton(text: String, onClick: () -> Unit) {
             .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = "+ $text",
-            color = TextGray,
-            fontSize = 14.sp
-        )
+        Text(text = "+ $text", color = TextGray, fontSize = 14.sp)
     }
 }
