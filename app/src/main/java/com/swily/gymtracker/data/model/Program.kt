@@ -12,5 +12,6 @@ data class Program(
     val name: String,
     val description: String,
     val colorHex: String,
-    val estimatedMinutes: Int
+    val estimatedMinutes: Int,
+    val warmupId: Long? = null
 )
