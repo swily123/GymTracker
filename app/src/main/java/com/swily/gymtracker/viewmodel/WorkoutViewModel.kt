@@ -1,56 +1,67 @@
 package com.swily.gymtracker.viewmodel
 
 import android.app.Application
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.swily.gymtracker.data.GymDatabase
 import com.swily.gymtracker.data.model.Exercise
 import com.swily.gymtracker.data.model.ProgramExercise
 import com.swily.gymtracker.data.model.SetLog
+import com.swily.gymtracker.data.model.WarmupExercise
 import com.swily.gymtracker.data.model.WorkoutSession
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import android.content.Context
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 
-// Состояния экрана тренировки
 enum class WorkoutState {
-    EXERCISE,       // Показываем упражнение
-    RESTING,        // Таймер отдыха идёт
-    REST_FINISHED,  // Таймер кончился, показываем диалог
+    WARMUP,         // Разминка
+    EXERCISE,       // Основное упражнение
+    RESTING,        // Таймер отдыха
+    REST_FINISHED,  // Таймер кончился, диалог
     COMPLETED       // Тренировка завершена
 }
 
-// Вся информация о текущем упражнении в одном месте
 data class CurrentExerciseInfo(
     val exercise: Exercise,
     val programExercise: ProgramExercise,
-    val exerciseIndex: Int,    // какое по счёту (0, 1, 2...)
-    val totalExercises: Int    // сколько всего
+    val exerciseIndex: Int,
+    val totalExercises: Int
+)
+
+data class CurrentWarmupInfo(
+    val warmupExercise: WarmupExercise,
+    val exerciseIndex: Int,
+    val totalExercises: Int
 )
 
 class WorkoutViewModel(application: Application) : AndroidViewModel(application) {
+
     private val database = GymDatabase.getDatabase(application)
     private val exerciseDao = database.exerciseDao()
+    private val programDao = database.programDao()
     private val programExerciseDao = database.programExerciseDao()
     private val workoutSessionDao = database.workoutSessionDao()
     private val setLogDao = database.setLogDao()
     private val settingsDao = database.settingsDao()
-    private val _restTotalSeconds = MutableStateFlow(0)
-    val restTotalSeconds: StateFlow<Int> = _restTotalSeconds
+    private val warmupContentDao = database.warmupContentDao()
 
-    // --- Состояние тренировки ---
-    private val _state = MutableStateFlow(WorkoutState.EXERCISE)
+    // --- Состояние ---
+    private val _state = MutableStateFlow(WorkoutState.WARMUP)
     val state: StateFlow<WorkoutState> = _state
 
     private val _currentExercise = MutableStateFlow<CurrentExerciseInfo?>(null)
     val currentExercise: StateFlow<CurrentExerciseInfo?> = _currentExercise
+
+    private val _currentWarmup = MutableStateFlow<CurrentWarmupInfo?>(null)
+    val currentWarmup: StateFlow<CurrentWarmupInfo?> = _currentWarmup
 
     private val _currentSet = MutableStateFlow(1)
     val currentSet: StateFlow<Int> = _currentSet
@@ -64,68 +75,110 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     private val _restSecondsLeft = MutableStateFlow(0)
     val restSecondsLeft: StateFlow<Int> = _restSecondsLeft
 
+    private val _restTotalSeconds = MutableStateFlow(0)
+    val restTotalSeconds: StateFlow<Int> = _restTotalSeconds
+
     private val _completedExercises = MutableStateFlow(0)
     val completedExercises: StateFlow<Int> = _completedExercises
 
     // Внутренние данные
     private var programExercises: List<ProgramExercise> = emptyList()
     private var exerciseMap: Map<Long, Exercise> = emptyMap()
+    private var warmupExercises: List<WarmupExercise> = emptyList()
     private var currentIndex = 0
+    private var warmupIndex = 0
     private var sessionId: Long = 0
     private var timerJob: Job? = null
     private var elapsedJob: Job? = null
-    private var restBetweenSets = 90    // из настроек
-    private var restBetweenExercises = 300  // из настроек
+    private var restBetweenSets = 90
+    private var restBetweenExercises = 300
+    private var hasWarmup = false
 
-    // Запуск тренировки
     fun startWorkout(programId: Long) {
         viewModelScope.launch {
             // Загружаем настройки
-            settingsDao.getSettings().collect { settings ->
-                if (settings != null) {
-                    restBetweenSets = settings.restBetweenSetsSec
-                    restBetweenExercises = settings.restBetweenExercisesSec
-                }
-                return@collect
+            val settings = settingsDao.getSettings().first()
+            if (settings != null) {
+                restBetweenSets = settings.restBetweenSetsSec
+                restBetweenExercises = settings.restBetweenExercisesSec
             }
-        }
 
-        viewModelScope.launch {
+            // Загружаем программу
+            val program = programDao.getProgramById(programId) ?: return@launch
+
             // Загружаем упражнения программы
-            programExerciseDao.getExercisesForProgram(programId).collect { peList ->
-                if (peList.isNotEmpty() && programExercises.isEmpty()) {
-                    programExercises = peList
+            val peList = programExerciseDao.getExercisesForProgram(programId).first()
+            if (peList.isEmpty()) return@launch
+            programExercises = peList
 
-                    // Загружаем данные упражнений
-                    val exercises = mutableMapOf<Long, Exercise>()
-                    for (pe in peList) {
-                        val exercise = exerciseDao.getExerciseById(pe.exerciseId)
-                        if (exercise != null) {
-                            exercises[exercise.id] = exercise
-                        }
-                    }
-                    exerciseMap = exercises
-
-                    // Создаём сессию в БД
-                    sessionId = workoutSessionDao.insertSession(
-                        WorkoutSession(
-                            programId = programId,
-                            startTime = System.currentTimeMillis(),
-                            durationSeconds = 0,
-                            totalVolumeKg = 0f,
-                            exerciseCount = peList.size
-                        )
-                    )
-
-                    // Показываем первое упражнение
-                    showExercise(0)
-
-                    // Запускаем общий таймер
-                    startElapsedTimer()
+            // Загружаем данные упражнений
+            val exercises = mutableMapOf<Long, Exercise>()
+            for (pe in peList) {
+                val exercise = exerciseDao.getExerciseById(pe.exerciseId)
+                if (exercise != null) {
+                    exercises[exercise.id] = exercise
                 }
+            }
+            exerciseMap = exercises
+
+            // Проверяем разминку
+            if (program.warmupId != null) {
+                val wExercises = warmupContentDao.getExercisesForWarmup(program.warmupId).first()
+                if (wExercises.isNotEmpty()) {
+                    warmupExercises = wExercises
+                    hasWarmup = true
+                }
+            }
+
+            // Создаём сессию
+            sessionId = workoutSessionDao.insertSession(
+                WorkoutSession(
+                    programId = programId,
+                    startTime = System.currentTimeMillis(),
+                    durationSeconds = 0,
+                    totalVolumeKg = 0f,
+                    exerciseCount = peList.size
+                )
+            )
+
+            // Запускаем общий таймер
+            startElapsedTimer()
+
+            // Начинаем с разминки или с упражнений
+            if (hasWarmup) {
+                showWarmupExercise(0)
+            } else {
+                showExercise(0)
             }
         }
     }
+
+    // --- Разминка ---
+
+    private fun showWarmupExercise(index: Int) {
+        warmupIndex = index
+        val exercise = warmupExercises[index]
+        _currentWarmup.value = CurrentWarmupInfo(
+            warmupExercise = exercise,
+            exerciseIndex = index,
+            totalExercises = warmupExercises.size
+        )
+        _state.value = WorkoutState.WARMUP
+    }
+
+    fun onWarmupExerciseDone() {
+        val isLast = warmupIndex >= warmupExercises.size - 1
+        if (isLast) {
+            // Разминка закончена → отдых 5 мин → первое упражнение
+            _currentWarmup.value = null
+            startRest(restBetweenExercises, afterWarmup = true)
+        } else {
+            // Следующее упражнение разминки (без отдыха)
+            showWarmupExercise(warmupIndex + 1)
+        }
+    }
+
+    // --- Основные упражнения ---
 
     private fun showExercise(index: Int) {
         currentIndex = index
@@ -142,12 +195,10 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         _state.value = WorkoutState.EXERCISE
     }
 
-    // Нажата кнопка "Подход выполнен"
     fun onSetCompleted() {
         val info = _currentExercise.value ?: return
         val pe = info.programExercise
 
-        // Записываем подход в БД
         viewModelScope.launch {
             setLogDao.insertSetLog(
                 SetLog(
@@ -162,32 +213,32 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             )
         }
 
-        // Обновляем объём
         _totalVolume.value += pe.weightKg * pe.reps
 
         val isLastSet = _currentSet.value >= pe.sets
         val isLastExercise = currentIndex >= programExercises.size - 1
 
         when {
-            // Последний подход последнего упражнения — завершаем
             isLastSet && isLastExercise -> {
                 _completedExercises.value = programExercises.size
                 finishWorkout()
             }
-            // Последний подход — отдых перед новым упражнением (5 мин)
             isLastSet -> {
                 _completedExercises.value = currentIndex + 1
                 startRest(restBetweenExercises)
             }
-            // Обычный подход — отдых между подходами (90 сек)
             else -> {
                 startRest(restBetweenSets)
             }
         }
     }
 
-    // Запуск таймера отдыха
-    private fun startRest(seconds: Int) {
+    // --- Отдых ---
+
+    private var isAfterWarmup = false
+
+    private fun startRest(seconds: Int, afterWarmup: Boolean = false) {
+        isAfterWarmup = afterWarmup
         _restTotalSeconds.value = seconds
         _restSecondsLeft.value = seconds
         _state.value = WorkoutState.RESTING
@@ -202,27 +253,29 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // Продолжить после отдыха
     fun onContinue() {
         timerJob?.cancel()
+
+        if (isAfterWarmup) {
+            isAfterWarmup = false
+            showExercise(0)
+            return
+        }
+
         val info = _currentExercise.value ?: return
         val isLastSet = _currentSet.value >= info.programExercise.sets
 
         if (isLastSet) {
-            // Переход к следующему упражнению
             showExercise(currentIndex + 1)
         } else {
-            // Следующий подход
             _currentSet.value += 1
             _state.value = WorkoutState.EXERCISE
         }
     }
 
-    // Добавить 1 минуту отдыха
     fun onAddMinute() {
         _restSecondsLeft.value += 60
         _state.value = WorkoutState.RESTING
-        // Если таймер уже остановился — перезапускаем
         if (timerJob?.isActive != true) {
             timerJob = viewModelScope.launch {
                 while (_restSecondsLeft.value > 0) {
@@ -235,7 +288,8 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // Общий таймер тренировки
+    // --- Таймеры ---
+
     private fun startElapsedTimer() {
         elapsedJob?.cancel()
         elapsedJob = viewModelScope.launch {
@@ -246,13 +300,13 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // Завершение тренировки
+    // --- Завершение ---
+
     private fun finishWorkout() {
         timerJob?.cancel()
         elapsedJob?.cancel()
         _state.value = WorkoutState.COMPLETED
 
-        // Обновляем сессию в БД
         viewModelScope.launch {
             workoutSessionDao.updateSession(
                 WorkoutSession(
@@ -268,7 +322,8 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // Форматирование времени
+    // --- Утилиты ---
+
     fun formatTime(seconds: Int): String {
         val min = seconds / 60
         val sec = seconds % 60
@@ -288,8 +343,8 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibrator.vibrate(
                 VibrationEffect.createWaveform(
-                    longArrayOf(0, 300, 200, 300, 200, 500),  // пауза, вибро, пауза, вибро, пауза, вибро
-                    -1  // не повторять
+                    longArrayOf(0, 300, 200, 300, 200, 500),
+                    -1
                 )
             )
         }

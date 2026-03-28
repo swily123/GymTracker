@@ -51,9 +51,9 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
 
     // --- Программы ---
 
-    fun insertProgram(program: Program, exerciseIds: List<Long>) {
+    fun insertProgram(program: Program, exerciseIds: List<Long>, warmupId: Long? = null) {
         viewModelScope.launch {
-            val programId = programDao.insertProgram(program)
+            val programId = programDao.insertProgram(program.copy(warmupId = warmupId))
             val programExercises = exerciseIds.mapIndexed { index, exerciseId ->
                 ProgramExercise(
                     programId = programId,
@@ -67,9 +67,9 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun updateProgram(program: Program, exerciseIds: List<Long>) {
+    fun updateProgram(program: Program, exerciseIds: List<Long>, warmupId: Long? = null) {
         viewModelScope.launch {
-            programDao.updateProgram(program)
+            programDao.updateProgram(program.copy(warmupId = warmupId))
             programExerciseDao.deleteByProgramId(program.id)
             val programExercises = exerciseIds.mapIndexed { index, exerciseId ->
                 ProgramExercise(

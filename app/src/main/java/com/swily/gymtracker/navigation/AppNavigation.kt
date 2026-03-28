@@ -204,14 +204,18 @@ fun AppNavigation() {
 
             composable("program_create") {
                 val exercises by catalogViewModel.allExercises.collectAsState(initial = emptyList())
+                val warmups by catalogViewModel.allWarmups.collectAsState(initial = emptyList())
                 ProgramEditScreen(
                     program = null,
                     allExercises = exercises,
                     selectedExerciseIds = emptyList(),
-                    onSave = { name, description, colorHex, exerciseIds ->
+                    allWarmups = warmups,
+                    selectedWarmupId = null,
+                    onSave = { name, description, colorHex, exerciseIds, warmupId ->
                         catalogViewModel.insertProgram(
                             Program(name = name, description = description, colorHex = colorHex, estimatedMinutes = 45),
-                            exerciseIds
+                            exerciseIds,
+                            warmupId
                         )
                         navController.popBackStack()
                     },
@@ -221,6 +225,7 @@ fun AppNavigation() {
 
             composable("program_edit") {
                 val exercises by catalogViewModel.allExercises.collectAsState(initial = emptyList())
+                val warmups by catalogViewModel.allWarmups.collectAsState(initial = emptyList())
                 val programExercises by selectedProgram?.let {
                     catalogViewModel.getExercisesForProgram(it.id).collectAsState(initial = emptyList())
                 } ?: remember { mutableStateOf(emptyList()) }
@@ -229,11 +234,14 @@ fun AppNavigation() {
                     program = selectedProgram,
                     allExercises = exercises,
                     selectedExerciseIds = programExercises.map { it.exerciseId },
-                    onSave = { name, description, colorHex, exerciseIds ->
+                    allWarmups = warmups,
+                    selectedWarmupId = selectedProgram?.warmupId,
+                    onSave = { name, description, colorHex, exerciseIds, warmupId ->
                         selectedProgram?.let { program ->
                             catalogViewModel.updateProgram(
                                 program.copy(name = name, description = description, colorHex = colorHex),
-                                exerciseIds
+                                exerciseIds,
+                                warmupId
                             )
                         }
                         navController.popBackStack()

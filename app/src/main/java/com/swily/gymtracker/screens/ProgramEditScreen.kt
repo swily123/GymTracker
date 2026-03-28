@@ -23,6 +23,13 @@ import com.swily.gymtracker.data.model.Exercise
 import com.swily.gymtracker.data.model.Program
 import com.swily.gymtracker.ui.theme.*
 import com.swily.gymtracker.ui.theme.ProgramColorPalette
+import com.swily.gymtracker.data.model.Warmup
+import androidx.compose.foundation.border
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import com.swily.gymtracker.ui.theme.ProgramColorPalette
+import com.swily.gymtracker.ui.theme.toHex
 
 fun randomProgramColor(): String {
     return ProgramColorPalette.random().toHex()
@@ -33,7 +40,9 @@ fun ProgramEditScreen(
     program: Program? = null,
     allExercises: List<Exercise>,
     selectedExerciseIds: List<Long>,
-    onSave: (name: String, description: String, colorHex: String, exerciseIds: List<Long>) -> Unit,
+    allWarmups: List<Warmup> = emptyList(),
+    selectedWarmupId: Long? = null,
+    onSave: (name: String, description: String, colorHex: String, exerciseIds: List<Long>, warmupId: Long?) -> Unit,
     onBack: () -> Unit
 ) {
     val isEditing = program != null
@@ -41,6 +50,7 @@ fun ProgramEditScreen(
     var description by remember { mutableStateOf(program?.description ?: "") }
     var selectedColor by remember { mutableStateOf(program?.colorHex ?: "") }
     var selected by remember(selectedExerciseIds) { mutableStateOf(selectedExerciseIds.toSet()) }
+    var selectedWarmup by remember(selectedWarmupId) { mutableStateOf(selectedWarmupId) }
 
     Column(
         modifier = Modifier
@@ -69,99 +79,154 @@ fun ProgramEditScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Поле: Название
-        Text("Название тренировки", color = TextGray, fontSize = 13.sp)
-        Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            placeholder = { Text("Например: Push Day") },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Orange,
-                unfocusedBorderColor = DarkSurfaceLight,
-                focusedContainerColor = DarkSurface,
-                unfocusedContainerColor = DarkSurface,
-                focusedTextColor = TextWhite,
-                unfocusedTextColor = TextWhite,
-                cursorColor = Orange,
-                focusedPlaceholderColor = TextDarkGray,
-                unfocusedPlaceholderColor = TextDarkGray
-            ),
-            singleLine = true
-        )
-
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Поле: Описание
-        Text("Описание (необязательно)", color = TextGray, fontSize = 13.sp)
-        Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
-            value = description,
-            onValueChange = { description = it },
-            placeholder = { Text("Например: Грудь, спина, плечи") },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Orange,
-                unfocusedBorderColor = DarkSurfaceLight,
-                focusedContainerColor = DarkSurface,
-                unfocusedContainerColor = DarkSurface,
-                focusedTextColor = TextWhite,
-                unfocusedTextColor = TextWhite,
-                cursorColor = Orange,
-                focusedPlaceholderColor = TextDarkGray,
-                unfocusedPlaceholderColor = TextDarkGray
-            ),
-            singleLine = true
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Выбор цвета
-        Text("Цвет (необязательно)", color = TextGray, fontSize = 13.sp)
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            ProgramColorPalette.forEach { color ->
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(color)
-                        .then(
-                            if (selectedColor == color.toHex()) {
-                                Modifier.border(2.dp, TextWhite, CircleShape)
-                            } else {
-                                Modifier
-                            }
-                        )
-                        .clickable { selectedColor = color.toHex() }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Заголовок списка упражнений
-        Text(
-            text = "Выбери упражнения (${selected.size} выбрано)",
-            color = TextGray,
-            fontSize = 13.sp
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Список упражнений с чекбоксами
+        // Всё остальное в одном скроллируемом списке
         LazyColumn(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Название
+            item {
+                Text("Название тренировки", color = TextGray, fontSize = 13.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    placeholder = { Text("Например: Push Day") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Orange,
+                        unfocusedBorderColor = DarkSurfaceLight,
+                        focusedContainerColor = DarkSurface,
+                        unfocusedContainerColor = DarkSurface,
+                        focusedTextColor = TextWhite,
+                        unfocusedTextColor = TextWhite,
+                        cursorColor = Orange,
+                        focusedPlaceholderColor = TextDarkGray,
+                        unfocusedPlaceholderColor = TextDarkGray
+                    ),
+                    singleLine = true
+                )
+            }
+
+            // Описание
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Описание (необязательно)", color = TextGray, fontSize = 13.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    placeholder = { Text("Например: Грудь, спина, плечи") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Orange,
+                        unfocusedBorderColor = DarkSurfaceLight,
+                        focusedContainerColor = DarkSurface,
+                        unfocusedContainerColor = DarkSurface,
+                        focusedTextColor = TextWhite,
+                        unfocusedTextColor = TextWhite,
+                        cursorColor = Orange,
+                        focusedPlaceholderColor = TextDarkGray,
+                        unfocusedPlaceholderColor = TextDarkGray
+                    ),
+                    singleLine = true
+                )
+            }
+
+            // Цвет
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Цвет (необязательно)", color = TextGray, fontSize = 13.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ProgramColorPalette.forEach { color ->
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .then(
+                                    if (selectedColor == color.toHex()) {
+                                        Modifier.border(2.dp, TextWhite, CircleShape)
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                                .clickable { selectedColor = color.toHex() }
+                        )
+                    }
+                }
+            }
+
+            // Разминка
+            if (allWarmups.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Разминка (необязательно)", color = TextGray, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (selectedWarmup == null) DarkSurface else DarkBg)
+                            .border(
+                                width = 1.dp,
+                                color = if (selectedWarmup == null) Orange else DarkSurfaceLight,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .clickable { selectedWarmup = null }
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Text(
+                            text = "Без разминки",
+                            color = if (selectedWarmup == null) TextWhite else TextGray,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+
+                items(allWarmups) { warmup ->
+                    val isSelected = selectedWarmup == warmup.id
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isSelected) DarkSurface else DarkBg)
+                            .border(
+                                width = 1.dp,
+                                color = if (isSelected) Orange else DarkSurfaceLight,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .clickable { selectedWarmup = warmup.id }
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Text(
+                            text = warmup.name,
+                            color = if (isSelected) TextWhite else TextGray,
+                            fontSize = 14.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                }
+            }
+
+            // Упражнения
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Выбери упражнения (${selected.size} выбрано)",
+                    color = TextGray,
+                    fontSize = 13.sp
+                )
+            }
+
             items(allExercises) { exercise ->
                 val isSelected = selected.contains(exercise.id)
                 ExerciseCheckItem(
@@ -176,6 +241,8 @@ fun ProgramEditScreen(
                     }
                 )
             }
+
+            item { Spacer(modifier = Modifier.height(8.dp)) }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -189,7 +256,7 @@ fun ProgramEditScreen(
                 .background(if (canSave) Orange else DarkSurfaceLight)
                 .clickable(enabled = canSave) {
                     val finalColor = selectedColor.ifBlank { randomProgramColor() }
-                    onSave(name.trim(), description.trim(), finalColor, selected.toList())
+                    onSave(name.trim(), description.trim(), finalColor, selected.toList(), selectedWarmup)
                 }
                 .padding(vertical = 16.dp),
             contentAlignment = Alignment.Center

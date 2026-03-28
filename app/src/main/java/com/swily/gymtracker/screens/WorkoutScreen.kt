@@ -38,6 +38,7 @@ fun WorkoutScreen(
     val restTotalSeconds by viewModel.restTotalSeconds.collectAsState()
     val totalVolume by viewModel.totalVolume.collectAsState()
     val completedExercises by viewModel.completedExercises.collectAsState()
+    val currentWarmup by viewModel.currentWarmup.collectAsState()
 
     // Диалог подтверждения выхода
     var showExitDialog by remember { mutableStateOf(false) }
@@ -78,7 +79,22 @@ fun WorkoutScreen(
             .fillMaxSize()
             .background(DarkBg)
     ) {
+
         when (state) {
+            WorkoutState.WARMUP -> {
+                currentWarmup?.let { info ->
+                    WarmupContent(
+                        exerciseName = info.warmupExercise.name,
+                        description = info.warmupExercise.description,
+                        reps = info.warmupExercise.reps,
+                        exerciseIndex = info.exerciseIndex + 1,
+                        totalExercises = info.totalExercises,
+                        elapsedTime = viewModel.formatTime(elapsedSeconds),
+                        onDone = { viewModel.onWarmupExerciseDone() },
+                        onBack = { showExitDialog = true }
+                    )
+                }
+            }
             WorkoutState.EXERCISE -> {
                 currentExercise?.let { info ->
                     ExerciseContent(
@@ -479,5 +495,133 @@ fun CompletedDialog(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun WarmupContent(
+    exerciseName: String,
+    description: String,
+    reps: Int,
+    exerciseIndex: Int,
+    totalExercises: Int,
+    elapsedTime: String,
+    onDone: () -> Unit,
+    onBack: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+    ) {
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Назад",
+                    tint = TextWhite,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable { onBack() }
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text("Разминка", color = TextWhite, fontSize = 16.sp)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(Green)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(elapsedTime, color = Green, fontSize = 14.sp)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Разминка", color = TextGray, fontSize = 12.sp)
+            Text("$exerciseIndex/$totalExercises", color = TextGray, fontSize = 12.sp)
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        LinearProgressIndicator(
+            progress = { exerciseIndex.toFloat() / totalExercises },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp)),
+            color = Green,
+            trackColor = DarkSurfaceLight,
+        )
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "🤸",
+                fontSize = 48.sp
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = exerciseName,
+                color = TextWhite,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "$reps повторений",
+                color = Orange,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium
+            )
+            if (description.isNotBlank()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(DarkSurface)
+                        .padding(16.dp)
+                ) {
+                    Text(text = description, color = TextGray, fontSize = 13.sp)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(Green)
+                .clickable { onDone() }
+                .padding(vertical = 18.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Готово ✓",
+                color = TextWhite,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
