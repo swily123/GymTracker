@@ -75,7 +75,7 @@ fun CatalogScreen(
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            val tabs = listOf("Тренировки", "Упражнения", "Разминки", "Упр. разминки")
+            val tabs = listOf("Тренировки", "Упражнения", "Разминки", "Упражнения разминки")
             items(tabs.size) { index ->
                 TabButton(
                     text = tabs[index],

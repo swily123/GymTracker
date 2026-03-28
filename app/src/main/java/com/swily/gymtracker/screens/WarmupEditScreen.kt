@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,6 +33,7 @@ fun WarmupEditScreen(
     val isEditing = warmup != null
     var name by remember { mutableStateOf(warmup?.name ?: "") }
     var selected by remember(selectedExerciseIds) { mutableStateOf(selectedExerciseIds.toSet()) }
+    var showErrors by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -61,17 +63,20 @@ fun WarmupEditScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Text("Название разминки", color = TextGray, fontSize = 13.sp)
+        Text("Название разминки *", color = if (showErrors && name.isBlank()) Color(0xFFCF6679) else TextGray, fontSize = 13.sp)
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = name,
-            onValueChange = { name = it },
+            onValueChange = {
+                name = it
+                if (it.isNotBlank()) showErrors = false
+            },
             placeholder = { Text("Например: Верх тела") },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Orange,
-                unfocusedBorderColor = DarkSurfaceLight,
+                focusedBorderColor = if (showErrors && name.isBlank()) Color(0xFFCF6679) else Orange,
+                unfocusedBorderColor = if (showErrors && name.isBlank()) Color(0xFFCF6679) else DarkSurfaceLight,
                 focusedContainerColor = DarkSurface,
                 unfocusedContainerColor = DarkSurface,
                 focusedTextColor = TextWhite,
@@ -86,8 +91,11 @@ fun WarmupEditScreen(
         Spacer(modifier = Modifier.height(20.dp))
 
         Text(
-            text = "Выбери упражнения (${selected.size} выбрано)",
-            color = TextGray,
+            text = if (showErrors && selected.isEmpty())
+                "Выбери упражнения * (нужно выбрать хотя бы одно)"
+            else
+                "Выбери упражнения * (${selected.size} выбрано)",
+            color = if (showErrors && selected.isEmpty()) Color(0xFFCF6679) else TextGray,
             fontSize = 13.sp
         )
 
@@ -115,14 +123,17 @@ fun WarmupEditScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        val canSave = name.isNotBlank() && selected.isNotEmpty()
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .background(if (canSave) Orange else DarkSurfaceLight)
-                .clickable(enabled = canSave) {
-                    onSave(name.trim(), selected.toList())
+                .background(Orange)
+                .clickable {
+                    if (name.isBlank() || selected.isEmpty()) {
+                        showErrors = true
+                    } else {
+                        onSave(name.trim(), selected.toList())
+                    }
                 }
                 .padding(vertical = 16.dp),
             contentAlignment = Alignment.Center

@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -29,6 +30,7 @@ fun WarmupExerciseEditScreen(
     var name by remember { mutableStateOf(warmupExercise?.name ?: "") }
     var description by remember { mutableStateOf(warmupExercise?.description ?: "") }
     var reps by remember { mutableStateOf(warmupExercise?.reps?.toString() ?: "") }
+    var showErrors by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -58,17 +60,20 @@ fun WarmupExerciseEditScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Text("Название", color = TextGray, fontSize = 13.sp)
+        Text("Название *", color = if (showErrors && name.isBlank()) Color(0xFFCF6679) else TextGray, fontSize = 13.sp)
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = name,
-            onValueChange = { name = it },
+            onValueChange = {
+                name = it
+                if (it.isNotBlank() && reps.isNotBlank()) showErrors = false
+            },
             placeholder = { Text("Например: Круговые махи руками") },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Orange,
-                unfocusedBorderColor = DarkSurfaceLight,
+                focusedBorderColor = if (showErrors && name.isBlank()) Color(0xFFCF6679) else Orange,
+                unfocusedBorderColor = if (showErrors && name.isBlank()) Color(0xFFCF6679) else DarkSurfaceLight,
                 focusedContainerColor = DarkSurface,
                 unfocusedContainerColor = DarkSurface,
                 focusedTextColor = TextWhite,
@@ -82,7 +87,7 @@ fun WarmupExerciseEditScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text("Описание (необязательно)", color = TextGray, fontSize = 13.sp)
+        Text("Описание", color = TextGray, fontSize = 13.sp)
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = description,
@@ -106,16 +111,19 @@ fun WarmupExerciseEditScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text("Кол-во повторений", color = TextGray, fontSize = 13.sp)
+        Text("Кол-во повторений *", color = if (showErrors && reps.isBlank()) Color(0xFFCF6679) else TextGray, fontSize = 13.sp)
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = reps,
-            onValueChange = { reps = it.filter { c -> c.isDigit() } },
+            onValueChange = {
+                reps = it.filter { c -> c.isDigit() }
+                if (name.isNotBlank() && reps.isNotBlank()) showErrors = false
+            },
             modifier = Modifier.fillMaxWidth(0.4f),
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Orange,
-                unfocusedBorderColor = DarkSurfaceLight,
+                focusedBorderColor = if (showErrors && reps.isBlank()) Color(0xFFCF6679) else Orange,
+                unfocusedBorderColor = if (showErrors && reps.isBlank()) Color(0xFFCF6679) else DarkSurfaceLight,
                 focusedContainerColor = DarkSurface,
                 unfocusedContainerColor = DarkSurface,
                 focusedTextColor = TextWhite,
@@ -133,15 +141,19 @@ fun WarmupExerciseEditScreen(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
                 .background(if (name.isNotBlank()) Orange else DarkSurfaceLight)
-                .clickable(enabled = name.isNotBlank()) {
-                    onSave(
-                        WarmupExercise(
-                            id = warmupExercise?.id ?: 0,
-                            name = name.trim(),
-                            description = description.trim(),
-                            reps = reps.toIntOrNull() ?: 10
+                .clickable {
+                    if (name.isBlank() || reps.isBlank()) {
+                        showErrors = true
+                    } else {
+                        onSave(
+                            WarmupExercise(
+                                id = warmupExercise?.id ?: 0,
+                                name = name.trim(),
+                                description = description.trim(),
+                                reps = reps.toIntOrNull() ?: 10
+                            )
                         )
-                    )
+                    }
                 }
                 .padding(vertical = 16.dp),
             contentAlignment = Alignment.Center

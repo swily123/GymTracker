@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -29,6 +30,8 @@ fun ExerciseEditScreen(
     var name by remember { mutableStateOf(exercise?.name ?: "") }
     var reps by remember { mutableStateOf(exercise?.defaultReps?.toString() ?: "") }
     var weight by remember { mutableStateOf(exercise?.defaultWeightKg?.toInt()?.toString() ?: "") }
+    var tip by remember { mutableStateOf(exercise?.tip ?: "") }
+    var showErrors by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -62,17 +65,20 @@ fun ExerciseEditScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         // Поле: Название
-        Text("Название упражнения", color = TextGray, fontSize = 13.sp)
+        Text("Название упражнения *", color = if (showErrors && name.isBlank()) Color(0xFFCF6679) else TextGray, fontSize = 13.sp)
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = name,
-            onValueChange = { name = it },
+            onValueChange = {
+                name = it
+                if (it.isNotBlank()) showErrors = false
+            },
             placeholder = { Text("Например: Жим штанги лёжа") },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Orange,
-                unfocusedBorderColor = DarkSurfaceLight,
+                focusedBorderColor = if (showErrors && name.isBlank()) Color(0xFFCF6679) else Orange,
+                unfocusedBorderColor = if (showErrors && name.isBlank()) Color(0xFFCF6679) else DarkSurfaceLight,
                 focusedContainerColor = DarkSurface,
                 unfocusedContainerColor = DarkSurface,
                 focusedTextColor = TextWhite,
@@ -136,6 +142,30 @@ fun ExerciseEditScreen(
             }
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("Совет по технике (необязательно)", color = TextGray, fontSize = 13.sp)
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = tip,
+            onValueChange = { tip = it },
+            placeholder = { Text("Например: Локти под 45°") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Orange,
+                unfocusedBorderColor = DarkSurfaceLight,
+                focusedContainerColor = DarkSurface,
+                unfocusedContainerColor = DarkSurface,
+                focusedTextColor = TextWhite,
+                unfocusedTextColor = TextWhite,
+                cursorColor = Orange,
+                focusedPlaceholderColor = TextDarkGray,
+                unfocusedPlaceholderColor = TextDarkGray
+            ),
+            singleLine = true
+        )
+
         Spacer(modifier = Modifier.weight(1f))
 
         // Кнопка сохранения
@@ -144,14 +174,19 @@ fun ExerciseEditScreen(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
                 .background(if (name.isNotBlank()) Orange else DarkSurfaceLight)
-                .clickable(enabled = name.isNotBlank()) {
-                    val newExercise = Exercise(
-                        id = exercise?.id ?: 0,
-                        name = name.trim(),
-                        defaultReps = reps.toIntOrNull() ?: 12,
-                        defaultWeightKg = (weight.toIntOrNull() ?: 0).toFloat()
-                    )
-                    onSave(newExercise)
+                .clickable {
+                    if (name.isBlank()) {
+                        showErrors = true
+                    } else {
+                        val newExercise = Exercise(
+                            id = exercise?.id ?: 0,
+                            name = name.trim(),
+                            defaultReps = reps.toIntOrNull() ?: 12,
+                            defaultWeightKg = (weight.toIntOrNull() ?: 0).toFloat(),
+                            tip = tip.trim()
+                        )
+                        onSave(newExercise)
+                    }
                 }
                 .padding(vertical = 16.dp),
             contentAlignment = Alignment.Center
