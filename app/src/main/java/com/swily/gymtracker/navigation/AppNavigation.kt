@@ -13,12 +13,9 @@ import androidx.navigation.compose.rememberNavController
 import com.swily.gymtracker.data.model.Exercise
 import com.swily.gymtracker.data.model.Program
 import com.swily.gymtracker.screens.*
-import com.swily.gymtracker.ui.theme.DarkBg
-import com.swily.gymtracker.ui.theme.DarkSurface
-import com.swily.gymtracker.ui.theme.TextGray
+import com.swily.gymtracker.ui.theme.*
 import com.swily.gymtracker.viewmodel.CatalogViewModel
 import com.swily.gymtracker.viewmodel.WorkoutViewModel
-import androidx.compose.runtime.LaunchedEffect
 
 @Composable
 fun AppNavigation() {
@@ -34,14 +31,50 @@ fun AppNavigation() {
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val hideBottomBar = currentRoute in listOf("exercise_edit", "exercise_create", "program_edit", "program_create", "workout")
+    val hideBottomBar = currentRoute in listOf(
+        "exercise_edit", "exercise_create",
+        "program_edit", "program_create",
+        "workout"
+    )
 
     var selectedExercise by remember { mutableStateOf<Exercise?>(null) }
     var selectedProgram by remember { mutableStateOf<Program?>(null) }
+    var catalogTab by remember { mutableIntStateOf(0) }
     var workoutProgramId by remember { mutableStateOf<Long?>(null) }
 
-    // Запоминаем активную вкладку каталога (0 = Тренировки, 1 = Упражнения)
-    var catalogTab by remember { mutableIntStateOf(0) }
+    // Диалог подтверждения запуска тренировки
+    var showStartWorkoutDialog by remember { mutableStateOf(false) }
+    var pendingProgram by remember { mutableStateOf<Program?>(null) }
+
+    if (showStartWorkoutDialog && pendingProgram != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showStartWorkoutDialog = false
+                pendingProgram = null
+            },
+            title = { Text("Начать тренировку?", color = TextWhite) },
+            text = { Text("\"${pendingProgram?.name}\"", color = TextGray) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showStartWorkoutDialog = false
+                    workoutProgramId = pendingProgram?.id
+                    pendingProgram = null
+                    navController.navigate("workout")
+                }) {
+                    Text("Начать", color = Orange)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showStartWorkoutDialog = false
+                    pendingProgram = null
+                }) {
+                    Text("Отмена", color = TextGray)
+                }
+            },
+            containerColor = DarkSurface
+        )
+    }
 
     Scaffold(
         containerColor = DarkBg,
@@ -95,6 +128,10 @@ fun AppNavigation() {
                         selectedExercise = null
                         navController.navigate("exercise_create")
                     },
+                    onProgramClick = { program ->
+                        pendingProgram = program
+                        showStartWorkoutDialog = true
+                    },
                     onProgramEditClick = { program ->
                         selectedProgram = program
                         navController.navigate("program_edit")
@@ -103,16 +140,12 @@ fun AppNavigation() {
                         selectedProgram = null
                         navController.navigate("program_create")
                     },
-                    onExerciseDelete = { exercise ->
-                        catalogViewModel.deleteExercise(exercise)
-                    },
                     onProgramDelete = { program ->
                         catalogViewModel.deleteProgram(program)
                     },
-                    onProgramClick = { program ->
-                        workoutProgramId = program.id
-                        navController.navigate("workout")
-                    },
+                    onExerciseDelete = { exercise ->
+                        catalogViewModel.deleteExercise(exercise)
+                    }
                 )
             }
 
@@ -192,9 +225,11 @@ fun AppNavigation() {
 
                 WorkoutScreen(
                     viewModel = workoutViewModel,
-                    onBack = { navController.popBackStack() },
+                    onBack = {
+                        navController.popBackStack()
+                    },
                     onFinished = {
-                        navController.popBackStack("catalog", inclusive = false)
+                        navController.popBackStack()
                     }
                 )
             }
