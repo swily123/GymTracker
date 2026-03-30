@@ -325,6 +325,20 @@ fun AppNavigation() {
                     onBack = { navController.popBackStack() }
                 )
             }
+
+            composable(BottomNavItem.Home.route) {
+                HomeScreen(
+                    onStartWorkout = {
+                        navController.navigate(BottomNavItem.Catalog.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
+            }
         }
     }
 }

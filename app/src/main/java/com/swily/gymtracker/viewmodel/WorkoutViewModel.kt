@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+// TODO: Сохранять состояние тренировки в БД для восстановления после закрытия приложения
+
 enum class WorkoutState {
     WARMUP,         // Разминка
     EXERCISE,       // Основное упражнение
