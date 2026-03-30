@@ -24,6 +24,7 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     onStartWorkout: () -> Unit = {},
+    onOpenTimer: () -> Unit = {},
     homeViewModel: HomeViewModel = viewModel()
 ) {
     val lastSession by homeViewModel.lastSession.collectAsState(initial = null)
@@ -204,5 +205,47 @@ fun HomeScreen(
         }
 
         Spacer(modifier = Modifier.height(32.dp))
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Таймер
+        Text(
+            text = "Таймер",
+            color = TextWhite,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(DarkSurface)
+                .clickable { onOpenTimer() }
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("⏱", fontSize = 24.sp)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(text = "00:00", color = TextWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Orange)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text("▶", color = TextWhite, fontSize = 14.sp)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
     }
 }

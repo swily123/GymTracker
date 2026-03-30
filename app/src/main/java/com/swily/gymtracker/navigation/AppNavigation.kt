@@ -36,7 +36,7 @@ fun AppNavigation() {
     val hideBottomBar = currentRoute in listOf(
         "exercise_edit", "exercise_create",
         "program_edit", "program_create",
-        "workout",
+        "workout", "timer",
         "warmup_edit", "warmup_create",
         "warmup_exercise_edit", "warmup_exercise_create"
     )
@@ -336,6 +336,29 @@ fun AppNavigation() {
                             launchSingleTop = true
                             restoreState = true
                         }
+                    }
+                )
+            }
+
+            composable("timer") {
+                TimerScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(BottomNavItem.Home.route) {
+                HomeScreen(
+                    onStartWorkout = {
+                        navController.navigate(BottomNavItem.Catalog.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onOpenTimer = {
+                        navController.navigate("timer")
                     }
                 )
             }
