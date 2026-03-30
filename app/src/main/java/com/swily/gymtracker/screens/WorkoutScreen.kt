@@ -23,6 +23,8 @@ import com.swily.gymtracker.ui.theme.*
 import com.swily.gymtracker.viewmodel.WorkoutState
 import com.swily.gymtracker.viewmodel.WorkoutViewModel
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 
 @Composable
 fun WorkoutScreen(
@@ -40,10 +42,8 @@ fun WorkoutScreen(
     val completedExercises by viewModel.completedExercises.collectAsState()
     val currentWarmup by viewModel.currentWarmup.collectAsState()
 
-    // Диалог подтверждения выхода
     var showExitDialog by remember { mutableStateOf(false) }
 
-    // Перехватываем системную кнопку "Назад"
     BackHandler {
         if (state == WorkoutState.COMPLETED) {
             onFinished()
@@ -79,7 +79,6 @@ fun WorkoutScreen(
             .fillMaxSize()
             .background(DarkBg)
     ) {
-
         when (state) {
             WorkoutState.WARMUP -> {
                 currentWarmup?.let { info ->
@@ -95,6 +94,7 @@ fun WorkoutScreen(
                     )
                 }
             }
+
             WorkoutState.EXERCISE -> {
                 currentExercise?.let { info ->
                     ExerciseContent(
@@ -108,7 +108,11 @@ fun WorkoutScreen(
                         elapsedTime = viewModel.formatTime(elapsedSeconds),
                         tip = info.exercise.tip,
                         onSetCompleted = { viewModel.onSetCompleted() },
-                        onBack = { showExitDialog = true }
+                        onBack = { showExitDialog = true },
+                        onWeightChange = { viewModel.adjustWeight(it) },
+                        onRepsChange = { viewModel.adjustReps(it) },
+                        onAddSet = { viewModel.addSet() },
+                        onSkipSet = { viewModel.skipSet() }
                     )
                 }
             }
@@ -154,8 +158,39 @@ fun ExerciseContent(
     elapsedTime: String,
     tip: String,
     onSetCompleted: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onWeightChange: (Float) -> Unit,
+    onRepsChange: (Int) -> Unit,
+    onAddSet: () -> Unit,
+    onSkipSet: () -> Unit
 ) {
+    var showWeightDialog by remember { mutableStateOf(false) }
+    var showRepsDialog by remember { mutableStateOf(false) }
+
+    if (showWeightDialog) {
+        NumberEditDialog(
+            title = "Изменить вес (кг)",
+            currentValue = "${weightKg.toInt()}",
+            onConfirm = { newValue ->
+                newValue.toFloatOrNull()?.let { onWeightChange(it) }
+                showWeightDialog = false
+            },
+            onDismiss = { showWeightDialog = false }
+        )
+    }
+
+    if (showRepsDialog) {
+        NumberEditDialog(
+            title = "Изменить повторения",
+            currentValue = "$reps",
+            onConfirm = { newValue ->
+                newValue.toIntOrNull()?.let { onRepsChange(it) }
+                showRepsDialog = false
+            },
+            onDismiss = { showRepsDialog = false }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -234,13 +269,58 @@ fun ExerciseContent(
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        // Редактируемые карточки
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            StatCard(value = "${weightKg.toInt()}", label = "кг", modifier = Modifier.weight(1f))
-            StatCard(value = "$reps", label = "повторений", modifier = Modifier.weight(1f))
-            StatCard(value = "$currentSet/$totalSets", label = "подход", modifier = Modifier.weight(1f))
+            EditableStatCard(
+                value = "${weightKg.toInt()}",
+                label = "кг",
+                modifier = Modifier.weight(1f),
+                onTap = { showWeightDialog = true }
+            )
+            EditableStatCard(
+                value = "$reps",
+                label = "повторений",
+                modifier = Modifier.weight(1f),
+                onTap = { showRepsDialog = true }
+            )
+            StatCard(
+                value = "$currentSet/$totalSets",
+                label = "подход",
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        // Кнопки управления подходами
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(DarkSurface)
+                    .clickable { onAddSet() }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = "+1 подход", color = TextGray, fontSize = 13.sp)
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(DarkSurface)
+                    .clickable { onSkipSet() }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = "Пропустить", color = TextGray, fontSize = 13.sp)
+            }
         }
 
         if (tip.isNotBlank()) {
@@ -298,6 +378,83 @@ fun StatCard(value: String, label: String, modifier: Modifier = Modifier) {
             Text(text = label, color = TextGray, fontSize = 12.sp)
         }
     }
+}
+
+@Composable
+fun EditableStatCard(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier,
+    onTap: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(DarkSurface)
+            .clickable { onTap() }
+            .padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = value,
+                color = Orange,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = label, color = TextGray, fontSize = 12.sp)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(text = "✎", color = TextGray, fontSize = 10.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun NumberEditDialog(
+    title: String,
+    currentValue: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var value by remember { mutableStateOf(currentValue) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, color = TextWhite) },
+        text = {
+            OutlinedTextField(
+                value = value,
+                onValueChange = { value = it.filter { c -> c.isDigit() || c == '.' } },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Orange,
+                    unfocusedBorderColor = DarkSurfaceLight,
+                    focusedContainerColor = DarkSurface,
+                    unfocusedContainerColor = DarkSurface,
+                    focusedTextColor = TextWhite,
+                    unfocusedTextColor = TextWhite,
+                    cursorColor = Orange
+                ),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(value) }) {
+                Text("OK", color = Orange)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена", color = TextGray)
+            }
+        },
+        containerColor = DarkSurface
+    )
 }
 
 @Composable
@@ -570,10 +727,7 @@ fun WarmupContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "🤸",
-                fontSize = 48.sp
-            )
+            Text(text = "🤸", fontSize = 48.sp)
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = exerciseName,

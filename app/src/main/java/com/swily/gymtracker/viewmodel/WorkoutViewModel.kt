@@ -233,6 +233,49 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    // Изменение веса для текущего подхода
+    fun adjustWeight(newWeight: Float) {
+        val info = _currentExercise.value ?: return
+        val updatedPe = info.programExercise.copy(weightKg = newWeight)
+        _currentExercise.value = info.copy(programExercise = updatedPe)
+    }
+
+    // Изменение повторений для текущего подхода
+    fun adjustReps(newReps: Int) {
+        val info = _currentExercise.value ?: return
+        val updatedPe = info.programExercise.copy(reps = newReps)
+        _currentExercise.value = info.copy(programExercise = updatedPe)
+    }
+
+    // Добавить подход
+    fun addSet() {
+        val info = _currentExercise.value ?: return
+        val updatedPe = info.programExercise.copy(sets = info.programExercise.sets + 1)
+        _currentExercise.value = info.copy(programExercise = updatedPe)
+    }
+
+    // Пропустить подход (перейти к следующему или к следующему упражнению)
+    fun skipSet() {
+        val info = _currentExercise.value ?: return
+        val pe = info.programExercise
+        val isLastSet = _currentSet.value >= pe.sets
+        val isLastExercise = currentIndex >= programExercises.size - 1
+
+        when {
+            isLastSet && isLastExercise -> {
+                _completedExercises.value = programExercises.size
+                finishWorkout()
+            }
+            isLastSet -> {
+                _completedExercises.value = currentIndex + 1
+                showExercise(currentIndex + 1)
+            }
+            else -> {
+                _currentSet.value += 1
+            }
+        }
+    }
+
     // --- Отдых ---
 
     private var isAfterWarmup = false
