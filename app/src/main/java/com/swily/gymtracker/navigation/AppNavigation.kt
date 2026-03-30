@@ -119,8 +119,6 @@ fun AppNavigation() {
             startDestination = BottomNavItem.Home.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(BottomNavItem.Home.route) { HomeScreen() }
-
             composable(BottomNavItem.Catalog.route) {
                 CatalogScreen(
                     viewModel = catalogViewModel,
@@ -323,20 +321,6 @@ fun AppNavigation() {
                         navController.popBackStack()
                     },
                     onBack = { navController.popBackStack() }
-                )
-            }
-
-            composable(BottomNavItem.Home.route) {
-                HomeScreen(
-                    onStartWorkout = {
-                        navController.navigate(BottomNavItem.Catalog.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
                 )
             }
 
