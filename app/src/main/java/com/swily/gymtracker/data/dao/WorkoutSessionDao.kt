@@ -16,6 +16,9 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM workoutSessions ORDER BY startTime DESC LIMIT 1")
     fun getLastSession(): Flow<WorkoutSession?>
 
+    @Query("DELETE FROM workoutSessions WHERE endTime IS NULL")
+    suspend fun deleteUnfinishedSessions()
+
     @Insert
     suspend fun insertSession(session: WorkoutSession): Long
 
