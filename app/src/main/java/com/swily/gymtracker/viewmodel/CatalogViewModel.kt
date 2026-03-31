@@ -12,6 +12,8 @@ import kotlinx.coroutines.launch
 import com.swily.gymtracker.data.model.Warmup
 import com.swily.gymtracker.data.model.WarmupContent
 import com.swily.gymtracker.data.model.WarmupExercise
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
 
 class CatalogViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -22,6 +24,7 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
     private val warmupDao = database.warmupDao()
     private val warmupExerciseDao = database.warmupExerciseDao()
     private val warmupContentDao = database.warmupContentDao()
+    private val settingsDao = database.settingsDao()
 
     val allWarmups: Flow<List<Warmup>> = warmupDao.getAllWarmups()
     val allWarmupExercises: Flow<List<WarmupExercise>> = warmupExerciseDao.getAllWarmupExercises()
@@ -64,12 +67,15 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
             programExerciseDao.insertAll(programExercises)
+
+            // Пересчитать время
+            val minutes = calculateEstimatedMinutes(programId, warmupId)
+            programDao.updateProgram(program.copy(id = programId, warmupId = warmupId, estimatedMinutes = minutes))
         }
     }
 
     fun updateProgram(program: Program, exerciseIds: List<Long>, warmupId: Long? = null) {
         viewModelScope.launch {
-            programDao.updateProgram(program.copy(warmupId = warmupId))
             programExerciseDao.deleteByProgramId(program.id)
             val programExercises = exerciseIds.mapIndexed { index, exerciseId ->
                 ProgramExercise(
@@ -81,6 +87,10 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
             programExerciseDao.insertAll(programExercises)
+
+            // Пересчитать время
+            val minutes = calculateEstimatedMinutes(program.id, warmupId)
+            programDao.updateProgram(program.copy(warmupId = warmupId, estimatedMinutes = minutes))
         }
     }
 
@@ -155,5 +165,66 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
 
     fun getExercisesForWarmup(warmupId: Long): Flow<List<WarmupExercise>> {
         return warmupContentDao.getExercisesForWarmup(warmupId)
+    }
+
+    suspend fun calculateEstimatedMinutes(programId: Long, warmupId: Long?): Int {
+        val settings = database.settingsDao().getSettings().first()
+        val restBetweenSets = settings?.restBetweenSetsSec ?: 180
+        val restBetweenExercises = settings?.restBetweenExercisesSec ?: 300
+        val exerciseExecutionTime = 90 // 1.5 мин на подход в среднем (в секундах)
+
+        var totalSeconds = 0
+
+        // Разминка
+        if (warmupId != null) {
+            totalSeconds += 600 // 10 мин на разминку
+            totalSeconds += restBetweenExercises // отдых после разминки
+        }
+
+        // Упражнения
+        val programExercises = programExerciseDao.getExercisesForProgram(programId).first()
+        if (programExercises.isEmpty()) return 0
+
+        programExercises.forEachIndexed { index, pe ->
+            // Время выполнения подходов
+            totalSeconds += pe.sets * exerciseExecutionTime
+            // Отдых между подходами (на 1 меньше чем подходов)
+            totalSeconds += (pe.sets - 1) * restBetweenSets
+            // Отдых между упражнениями (кроме последнего)
+            if (index < programExercises.size - 1) {
+                totalSeconds += restBetweenExercises
+            }
+        }
+
+        return totalSeconds / 60
+    }
+
+    fun calculateEstimatedMinutesFlow(programId: Long, warmupId: Long?): Flow<Int> {
+        return settingsDao.getSettings().combine(
+            programExerciseDao.getExercisesForProgram(programId)
+        ) { settings, exercises ->
+            val restBetweenSets = settings?.restBetweenSetsSec ?: 180
+            val restBetweenExercises = settings?.restBetweenExercisesSec ?: 300
+            val exerciseExecutionTime = 90
+
+            var totalSeconds = 0
+
+            if (warmupId != null) {
+                totalSeconds += 600
+                totalSeconds += restBetweenExercises
+            }
+
+            if (exercises.isEmpty()) return@combine 0
+
+            exercises.forEachIndexed { index, pe ->
+                totalSeconds += pe.sets * exerciseExecutionTime
+                totalSeconds += (pe.sets - 1) * restBetweenSets
+                if (index < exercises.size - 1) {
+                    totalSeconds += restBetweenExercises
+                }
+            }
+
+            totalSeconds / 60
+        }
     }
 }

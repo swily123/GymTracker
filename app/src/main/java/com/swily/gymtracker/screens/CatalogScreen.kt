@@ -95,6 +95,7 @@ fun CatalogScreen(
         when (selectedTab) {
             0 -> ProgramsList(
                 programs = programs,
+                viewModel = viewModel,
                 onProgramClick = onProgramClick,
                 onProgramEditClick = onProgramEditClick,
                 onProgramDelete = onProgramDelete,
@@ -146,6 +147,7 @@ fun TabButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
 @Composable
 fun ProgramsList(
     programs: List<Program>,
+    viewModel: CatalogViewModel,
     onProgramClick: (Program) -> Unit,
     onProgramEditClick: (Program) -> Unit,
     onProgramDelete: (Program) -> Unit,
@@ -175,6 +177,7 @@ fun ProgramsList(
         items(programs) { program ->
             ProgramCard(
                 program = program,
+                viewModel = viewModel,
                 onClick = { onProgramClick(program) },
                 onEditClick = { onProgramEditClick(program) },
                 onLongClick = { programToDelete = program }
@@ -192,6 +195,7 @@ fun ProgramsList(
 @Composable
 fun ProgramCard(
     program: Program,
+    viewModel: CatalogViewModel,
     onClick: () -> Unit,
     onEditClick: () -> Unit,
     onLongClick: () -> Unit
@@ -199,6 +203,9 @@ fun ProgramCard(
     val cardColor = try {
         Color(android.graphics.Color.parseColor(program.colorHex))
     } catch (e: Exception) { Orange }
+
+    val estimatedMinutes by viewModel.calculateEstimatedMinutesFlow(program.id, program.warmupId)
+        .collectAsState(initial = program.estimatedMinutes)
 
     Box(
         modifier = Modifier
@@ -229,8 +236,7 @@ fun ProgramCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                // TODO: Рассчитывать время тренировки на основе упражнений и отдыха
-                text = "~${program.estimatedMinutes} мин",
+                text = "~${estimatedMinutes} мин",
                 color = TextWhite.copy(alpha = 0.7f),
                 fontSize = 12.sp
             )
