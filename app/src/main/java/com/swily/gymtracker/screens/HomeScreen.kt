@@ -31,6 +31,7 @@ fun HomeScreen(
 
     val dateFormat = SimpleDateFormat("EEEE, d MMMM", Locale("ru"))
     val today = dateFormat.format(Date())
+    val profile by homeViewModel.profile.collectAsState(initial = null)
 
     // Советы дня
     val tips = listOf(
@@ -55,7 +56,7 @@ fun HomeScreen(
 
         // Приветствие
         Text(
-            text = "Привет, Alex!",
+            text = "Привет, ${profile?.name ?: "Атлет"}!",
             color = TextWhite,
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold

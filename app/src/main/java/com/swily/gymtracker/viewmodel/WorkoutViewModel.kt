@@ -95,6 +95,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     private var restBetweenSets = 90
     private var restBetweenExercises = 300
     private var hasWarmup = false
+    private var vibrationEnabled = true
 
     fun startWorkout(programId: Long) {
         viewModelScope.launch {
@@ -103,6 +104,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             if (settings != null) {
                 restBetweenSets = settings.restBetweenSetsSec
                 restBetweenExercises = settings.restBetweenExercisesSec
+                vibrationEnabled = settings.vibrationEnabled
             }
 
             // Загружаем программу
@@ -376,6 +378,8 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun vibrate() {
+        if (!vibrationEnabled) return
+
         val context = getApplication<Application>()
         val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val manager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
