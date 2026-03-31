@@ -62,7 +62,7 @@ fun WorkoutScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showExitDialog = false
-                    onBack()
+                    viewModel.forceFinishWorkout()
                 }) {
                     Text("Завершить", color = Orange)
                 }

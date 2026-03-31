@@ -398,4 +398,8 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             )
         }
     }
+
+    fun forceFinishWorkout() {
+        finishWorkout()
+    }
 }
