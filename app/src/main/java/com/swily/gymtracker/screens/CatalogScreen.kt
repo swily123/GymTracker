@@ -25,11 +25,13 @@ import com.swily.gymtracker.data.model.Warmup
 import com.swily.gymtracker.data.model.WarmupExercise
 import com.swily.gymtracker.ui.theme.*
 import com.swily.gymtracker.viewmodel.CatalogViewModel
+import com.swily.gymtracker.WeightUtils
 
 // TODO: Запоминать позицию скролла при возврате из редактирования
 @Composable
 fun CatalogScreen(
     viewModel: CatalogViewModel = viewModel(),
+    useKg: Boolean = true,
     initialTab: Int = 0,
     onTabChanged: (Int) -> Unit = {},
     onExerciseClick: (Exercise) -> Unit = {},
@@ -100,6 +102,7 @@ fun CatalogScreen(
             )
             1 -> ExercisesList(
                 exercises = exercises,
+                useKg = useKg,
                 onExerciseClick = onExerciseClick,
                 onExerciseDelete = onExerciseDelete,
                 onCreateClick = onCreateExercise
@@ -240,6 +243,7 @@ fun ProgramCard(
 @Composable
 fun ExercisesList(
     exercises: List<Exercise>,
+    useKg: Boolean = true,
     onExerciseClick: (Exercise) -> Unit,
     onExerciseDelete: (Exercise) -> Unit,
     onCreateClick: () -> Unit
@@ -268,6 +272,7 @@ fun ExercisesList(
         items(exercises) { exercise ->
             ExerciseCard(
                 exercise = exercise,
+                useKg = useKg,
                 onClick = { onExerciseClick(exercise) },
                 onLongClick = { exerciseToDelete = exercise }
             )
@@ -282,7 +287,7 @@ fun ExercisesList(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ExerciseCard(exercise: Exercise, onClick: () -> Unit, onLongClick: () -> Unit = {}) {
+fun ExerciseCard(exercise: Exercise, onClick: () -> Unit, onLongClick: () -> Unit = {}, useKg: Boolean = true) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -295,7 +300,7 @@ fun ExerciseCard(exercise: Exercise, onClick: () -> Unit, onLongClick: () -> Uni
             Text(text = exercise.name, color = TextWhite, fontSize = 16.sp, fontWeight = FontWeight.Medium)
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "${exercise.defaultReps} повторений · ${exercise.defaultWeightKg.toInt()} кг",
+                text = "${exercise.defaultReps} повторений · ${WeightUtils.format(exercise.defaultWeightKg, useKg)}",
                 color = TextGray, fontSize = 13.sp
             )
         }

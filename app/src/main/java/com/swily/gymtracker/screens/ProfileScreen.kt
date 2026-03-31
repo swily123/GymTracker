@@ -22,9 +22,11 @@ import com.swily.gymtracker.viewmodel.ProfileViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.swily.gymtracker.WeightUtils
 
 @Composable
 fun ProfileScreen(
+    useKg: Boolean = true,
     viewModel: ProfileViewModel = viewModel()
 ) {
     val profile by viewModel.profile.collectAsState(initial = null)
@@ -126,7 +128,7 @@ fun ProfileScreen(
                 modifier = Modifier.weight(1f)
             )
             ProfileStatCard(
-                value = String.format("%.1fт", totalVolume / 1000),
+                value = String.format("%.1f${if (useKg) "т" else "klb"}", if (useKg) totalVolume / 1000 else WeightUtils.toLb(totalVolume) / 1000),
                 label = "тоннаж",
                 modifier = Modifier.weight(1f)
             )
@@ -193,7 +195,7 @@ fun ProfileScreen(
                     Text("Вес", color = TextWhite, fontSize = 16.sp)
                 }
                 Text(
-                    text = "${profile?.weightKg ?: 0} кг",
+                    text = "${WeightUtils.convert(profile?.weightKg ?: 0f, useKg).let { if (useKg) String.format("%.1f", it) else "${it.toInt()}" }} ${WeightUtils.unit(useKg)}",
                     color = Orange,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold

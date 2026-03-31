@@ -58,7 +58,6 @@ fun TimerScreen(
                 secondsLeft -= 1
             }
             isRunning = false
-            // TODO: Добавить вибрацию при завершении
         }
     }
 

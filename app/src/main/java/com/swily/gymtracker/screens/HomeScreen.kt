@@ -20,11 +20,13 @@ import com.swily.gymtracker.viewmodel.HomeViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.swily.gymtracker.WeightUtils
 
 @Composable
 fun HomeScreen(
     onStartWorkout: () -> Unit = {},
     onOpenTimer: () -> Unit = {},
+    useKg: Boolean = true,
     homeViewModel: HomeViewModel = viewModel()
 ) {
     val lastSession by homeViewModel.lastSession.collectAsState(initial = null)
@@ -154,7 +156,7 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Объём: ${String.format("%.0f", session.totalVolumeKg)} кг",
+                        text = "Объём: ${WeightUtils.format(session.totalVolumeKg, useKg)}",
                         color = Orange,
                         fontSize = 13.sp
                     )

@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.swily.gymtracker.WeightUtils
 import com.swily.gymtracker.data.model.Exercise
 import com.swily.gymtracker.ui.theme.*
 import com.swily.gymtracker.viewmodel.ProgressViewModel
@@ -29,6 +30,7 @@ import java.util.Locale
 
 @Composable
 fun ProgressScreen(
+    useKg: Boolean = true,
     viewModel: ProgressViewModel = viewModel()
 ) {
     val exercises by viewModel.allExercises.collectAsState(initial = emptyList())
@@ -67,14 +69,14 @@ fun ProgressScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         when (selectedTab) {
-            0 -> GraphsTab(exercises = exercises, viewModel = viewModel)
-            1 -> RecordsTab(exercises = exercises, viewModel = viewModel)
+            0 -> GraphsTab(exercises = exercises, viewModel = viewModel, useKg = useKg)
+            1 -> RecordsTab(exercises = exercises, viewModel = viewModel, useKg = useKg)
         }
     }
 }
 
 @Composable
-fun GraphsTab(exercises: List<Exercise>, viewModel: ProgressViewModel) {
+fun GraphsTab(exercises: List<Exercise>, viewModel: ProgressViewModel, useKg: Boolean = true) {
     if (exercises.isEmpty()) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -87,14 +89,14 @@ fun GraphsTab(exercises: List<Exercise>, viewModel: ProgressViewModel) {
 
     LazyColumn {
         items(exercises) { exercise ->
-            ExerciseProgressCard(exercise = exercise, viewModel = viewModel)
+            ExerciseProgressCard(exercise = exercise, viewModel = viewModel, useKg = useKg)
         }
         item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }
 
 @Composable
-fun ExerciseProgressCard(exercise: Exercise, viewModel: ProgressViewModel) {
+fun ExerciseProgressCard(exercise: Exercise, viewModel: ProgressViewModel, useKg: Boolean = true) {
     val logs by viewModel.getLogsForExercise(exercise.id).collectAsState(initial = emptyList())
 
     if (logs.isEmpty()) return
@@ -126,7 +128,7 @@ fun ExerciseProgressCard(exercise: Exercise, viewModel: ProgressViewModel) {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${grouped.last().weightKg.toInt()} кг",
+                    text = WeightUtils.format(grouped.last().weightKg, useKg),
                     color = Orange,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
@@ -162,7 +164,7 @@ fun ExerciseProgressCard(exercise: Exercise, viewModel: ProgressViewModel) {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${if (change >= 0) "↑" else "↓"} ${String.format("%.0f", kotlin.math.abs(change))} кг (${String.format("%.0f", kotlin.math.abs(changePercent))}%)",
+                    text = "${if (change >= 0) "↑" else "↓"} ${WeightUtils.convert(kotlin.math.abs(change), useKg).toInt()} ${WeightUtils.unit(useKg)} (${String.format("%.0f", kotlin.math.abs(changePercent))}%)",
                     color = if (change >= 0) Green else Orange,
                     fontSize = 13.sp
                 )
@@ -184,12 +186,12 @@ fun ExerciseProgressCard(exercise: Exercise, viewModel: ProgressViewModel) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "${firstWeight.toInt()} кг",
+                    text = WeightUtils.format(firstWeight, useKg),
                     color = TextGray,
                     fontSize = 12.sp
                 )
                 Text(
-                    text = "${lastWeight.toInt()} кг",
+                    text = WeightUtils.format(lastWeight, useKg),
                     color = Orange,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
@@ -245,17 +247,17 @@ fun SimpleLineChart(
 }
 
 @Composable
-fun RecordsTab(exercises: List<Exercise>, viewModel: ProgressViewModel) {
+fun RecordsTab(exercises: List<Exercise>, viewModel: ProgressViewModel, useKg: Boolean = true) {
     LazyColumn {
         items(exercises) { exercise ->
-            RecordCard(exercise = exercise, viewModel = viewModel)
+            RecordCard(exercise = exercise, viewModel = viewModel, useKg = useKg)
         }
         item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }
 
 @Composable
-fun RecordCard(exercise: Exercise, viewModel: ProgressViewModel) {
+fun RecordCard(exercise: Exercise, viewModel: ProgressViewModel, useKg: Boolean = true) {
     val logs by viewModel.getLogsForExercise(exercise.id).collectAsState(initial = emptyList())
 
     if (logs.isEmpty()) return
@@ -293,7 +295,7 @@ fun RecordCard(exercise: Exercise, viewModel: ProgressViewModel) {
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${maxWeight.toInt()} кг",
+                    text = WeightUtils.format(maxWeight, useKg),
                     color = Orange,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold

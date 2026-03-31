@@ -18,9 +18,16 @@ import com.swily.gymtracker.viewmodel.CatalogViewModel
 import com.swily.gymtracker.viewmodel.WorkoutViewModel
 import com.swily.gymtracker.data.model.Warmup
 import com.swily.gymtracker.data.model.WarmupExercise
+import com.swily.gymtracker.data.GymDatabase
+import com.swily.gymtracker.WeightUtils
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun AppNavigation() {
+    val context = LocalContext.current
+    val database = remember { GymDatabase.getDatabase(context) }
+    val settings by database.settingsDao().getSettings().collectAsState(initial = null)
+    val useKg = settings?.useKg ?: true
     val navController = rememberNavController()
     val catalogViewModel: CatalogViewModel = viewModel()
 
@@ -122,6 +129,7 @@ fun AppNavigation() {
             composable(BottomNavItem.Catalog.route) {
                 CatalogScreen(
                     viewModel = catalogViewModel,
+                    useKg = useKg,
                     initialTab = catalogTab,
                     onTabChanged = { catalogTab = it },
                     onExerciseClick = { exercise ->
@@ -175,8 +183,8 @@ fun AppNavigation() {
                 )
             }
 
-            composable(BottomNavItem.Progress.route) { ProgressScreen() }
-            composable(BottomNavItem.Profile.route) { ProfileScreen() }
+            composable(BottomNavItem.Progress.route) { ProgressScreen(useKg = useKg) }
+            composable(BottomNavItem.Profile.route) { ProfileScreen(useKg = useKg) }
 
             composable("exercise_create") {
                 ExerciseEditScreen(
@@ -259,12 +267,9 @@ fun AppNavigation() {
 
                 WorkoutScreen(
                     viewModel = workoutViewModel,
-                    onBack = {
-                        navController.popBackStack()
-                    },
-                    onFinished = {
-                        navController.popBackStack()
-                    }
+                    useKg = useKg,
+                    onBack = { navController.popBackStack() },
+                    onFinished = { navController.popBackStack() }
                 )
             }
 
@@ -332,6 +337,7 @@ fun AppNavigation() {
 
             composable(BottomNavItem.Home.route) {
                 HomeScreen(
+                    useKg = useKg,
                     onStartWorkout = {
                         navController.navigate(BottomNavItem.Catalog.route) {
                             popUpTo(navController.graph.findStartDestination().id) {

@@ -25,10 +25,12 @@ import com.swily.gymtracker.viewmodel.WorkoutViewModel
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import com.swily.gymtracker.WeightUtils
 
 @Composable
 fun WorkoutScreen(
     viewModel: WorkoutViewModel,
+    useKg: Boolean = true,
     onBack: () -> Unit,
     onFinished: () -> Unit
 ) {
@@ -102,6 +104,7 @@ fun WorkoutScreen(
                         currentSet = currentSet,
                         totalSets = info.programExercise.sets,
                         weightKg = info.programExercise.weightKg,
+                        useKg = useKg,
                         reps = info.programExercise.reps,
                         exerciseIndex = info.exerciseIndex + 1,
                         totalExercises = info.totalExercises,
@@ -139,6 +142,7 @@ fun WorkoutScreen(
                     elapsedTime = viewModel.formatTime(elapsedSeconds),
                     exerciseCount = currentExercise?.totalExercises ?: 0,
                     totalVolume = totalVolume,
+                    useKg = useKg,
                     onFinish = onFinished
                 )
             }
@@ -152,6 +156,7 @@ fun ExerciseContent(
     currentSet: Int,
     totalSets: Int,
     weightKg: Float,
+    useKg: Boolean = true,
     reps: Int,
     exerciseIndex: Int,
     totalExercises: Int,
@@ -275,16 +280,10 @@ fun ExerciseContent(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             EditableStatCard(
-                value = "${weightKg.toInt()}",
-                label = "кг",
+                value = "${WeightUtils.convert(weightKg, useKg).toInt()}",
+                label = WeightUtils.unit(useKg),
                 modifier = Modifier.weight(1f),
                 onTap = { showWeightDialog = true }
-            )
-            EditableStatCard(
-                value = "$reps",
-                label = "повторений",
-                modifier = Modifier.weight(1f),
-                onTap = { showRepsDialog = true }
             )
             StatCard(
                 value = "$currentSet/$totalSets",
@@ -595,6 +594,7 @@ fun CompletedDialog(
     elapsedTime: String,
     exerciseCount: Int,
     totalVolume: Float,
+    useKg: Boolean = true,
     onFinish: () -> Unit
 ) {
     Box(
@@ -631,7 +631,7 @@ fun CompletedDialog(
                     StatCard(value = elapsedTime, label = "время", modifier = Modifier.weight(1f))
                     StatCard(value = "$exerciseCount", label = "упражнений", modifier = Modifier.weight(1f))
                     StatCard(
-                        value = String.format("%.1f т", totalVolume / 1000),
+                        value = String.format("%.1f ${if (useKg) "т" else "klb"}", if (useKg) totalVolume / 1000 else WeightUtils.toLb(totalVolume) / 1000),
                         label = "объём",
                         modifier = Modifier.weight(1f)
                     )
