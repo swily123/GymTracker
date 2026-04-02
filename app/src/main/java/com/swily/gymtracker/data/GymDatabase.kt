@@ -24,7 +24,9 @@ import kotlinx.coroutines.launch
         Settings::class,
         Warmup::class,
         WarmupContent::class,
-        WarmupExercise::class
+        WarmupExercise::class,
+        ExerciseCollection::class,
+        WarmupExerciseCollection::class
     ],
     version = 1,
     exportSchema = false
@@ -44,6 +46,8 @@ abstract class GymDatabase : RoomDatabase() {
     abstract fun warmupDao(): WarmupDao
     abstract fun warmupContentDao(): WarmupContentDao
     abstract fun warmupExerciseDao(): WarmupExerciseDao
+    abstract fun exerciseCollectionDao(): ExerciseCollectionDao
+    abstract fun warmupExerciseCollectionDao(): WarmupExerciseCollectionDao
 
     companion object {
         // Singleton — одна база на всё приложение

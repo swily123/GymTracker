@@ -9,5 +9,6 @@ data class WarmupExercise(
     val id: Long = 0,
     val name: String,
     val description: String = "",
-    val reps: Int = 4
+    val reps: Int = 4,
+    val collectionId: Long? = null
 )

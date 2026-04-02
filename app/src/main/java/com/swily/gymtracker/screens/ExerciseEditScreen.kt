@@ -19,10 +19,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swily.gymtracker.data.model.Exercise
 import com.swily.gymtracker.ui.theme.*
+import androidx.compose.foundation.border
+import com.swily.gymtracker.data.model.ExerciseCollection
 
 @Composable
 fun ExerciseEditScreen(
-    exercise: Exercise? = null,  // null = создание, не null = редактирование
+    exercise: Exercise? = null,
+    collections: List<ExerciseCollection> = emptyList(),
     onSave: (Exercise) -> Unit,
     onBack: () -> Unit
 ) {
@@ -31,6 +34,7 @@ fun ExerciseEditScreen(
     var reps by remember { mutableStateOf(exercise?.defaultReps?.toString() ?: "") }
     var weight by remember { mutableStateOf(exercise?.defaultWeightKg?.toInt()?.toString() ?: "") }
     var tip by remember { mutableStateOf(exercise?.tip ?: "") }
+    var selectedCollectionId by remember { mutableStateOf(exercise?.collectionId) }
     var showErrors by remember { mutableStateOf(false) }
 
     Column(
@@ -166,6 +170,60 @@ fun ExerciseEditScreen(
             singleLine = true
         )
 
+        if (collections.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Коллекция (необязательно)", color = TextGray, fontSize = 13.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Без коллекции
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (selectedCollectionId == null) DarkSurface else DarkBg)
+                    .border(
+                        width = 1.dp,
+                        color = if (selectedCollectionId == null) Orange else DarkSurfaceLight,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .clickable { selectedCollectionId = null }
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    text = "Без коллекции",
+                    color = if (selectedCollectionId == null) TextWhite else TextGray,
+                    fontSize = 14.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            collections.forEach { collection ->
+                val isSelected = selectedCollectionId == collection.id
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isSelected) DarkSurface else DarkBg)
+                        .border(
+                            width = 1.dp,
+                            color = if (isSelected) Orange else DarkSurfaceLight,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .clickable { selectedCollectionId = collection.id }
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = collection.name,
+                        color = if (isSelected) TextWhite else TextGray,
+                        fontSize = 14.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
         Spacer(modifier = Modifier.weight(1f))
 
         // Кнопка сохранения
@@ -183,7 +241,8 @@ fun ExerciseEditScreen(
                             name = name.trim(),
                             defaultReps = reps.toIntOrNull() ?: 12,
                             defaultWeightKg = (weight.toIntOrNull() ?: 0).toFloat(),
-                            tip = tip.trim()
+                            tip = tip.trim(),
+                            collectionId = selectedCollectionId
                         )
                         onSave(newExercise)
                     }

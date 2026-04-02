@@ -19,10 +19,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swily.gymtracker.data.model.WarmupExercise
 import com.swily.gymtracker.ui.theme.*
+import androidx.compose.foundation.border
+import com.swily.gymtracker.data.model.WarmupExerciseCollection
 
 @Composable
 fun WarmupExerciseEditScreen(
     warmupExercise: WarmupExercise? = null,
+    collections: List<WarmupExerciseCollection> = emptyList(),
     onSave: (WarmupExercise) -> Unit,
     onBack: () -> Unit
 ) {
@@ -31,6 +34,7 @@ fun WarmupExerciseEditScreen(
     var description by remember { mutableStateOf(warmupExercise?.description ?: "") }
     var reps by remember { mutableStateOf(warmupExercise?.reps?.toString() ?: "") }
     var showErrors by remember { mutableStateOf(false) }
+    var selectedCollectionId by remember { mutableStateOf(warmupExercise?.collectionId) }
 
     Column(
         modifier = Modifier
@@ -134,6 +138,59 @@ fun WarmupExerciseEditScreen(
             singleLine = true
         )
 
+        if (collections.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Коллекция (необязательно)", color = TextGray, fontSize = 13.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (selectedCollectionId == null) DarkSurface else DarkBg)
+                    .border(
+                        width = 1.dp,
+                        color = if (selectedCollectionId == null) Orange else DarkSurfaceLight,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .clickable { selectedCollectionId = null }
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    text = "Без коллекции",
+                    color = if (selectedCollectionId == null) TextWhite else TextGray,
+                    fontSize = 14.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            collections.forEach { collection ->
+                val isSelected = selectedCollectionId == collection.id
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isSelected) DarkSurface else DarkBg)
+                        .border(
+                            width = 1.dp,
+                            color = if (isSelected) Orange else DarkSurfaceLight,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .clickable { selectedCollectionId = collection.id }
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = collection.name,
+                        color = if (isSelected) TextWhite else TextGray,
+                        fontSize = 14.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
         Spacer(modifier = Modifier.weight(1f))
 
         Box(
@@ -150,7 +207,8 @@ fun WarmupExerciseEditScreen(
                                 id = warmupExercise?.id ?: 0,
                                 name = name.trim(),
                                 description = description.trim(),
-                                reps = reps.toIntOrNull() ?: 10
+                                reps = reps.toIntOrNull() ?: 10,
+                                collectionId = selectedCollectionId
                             )
                         )
                     }

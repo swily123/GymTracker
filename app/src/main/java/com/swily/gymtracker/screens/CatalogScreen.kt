@@ -26,8 +26,9 @@ import com.swily.gymtracker.data.model.WarmupExercise
 import com.swily.gymtracker.ui.theme.*
 import com.swily.gymtracker.viewmodel.CatalogViewModel
 import com.swily.gymtracker.WeightUtils
+import com.swily.gymtracker.data.model.ExerciseCollection
+import com.swily.gymtracker.data.model.WarmupExerciseCollection
 
-// TODO: Запоминать позицию скролла при возврате из редактирования
 @Composable
 fun CatalogScreen(
     viewModel: CatalogViewModel = viewModel(),
@@ -47,14 +48,19 @@ fun CatalogScreen(
     onWarmupDelete: (Warmup) -> Unit = {},
     onWarmupExerciseClick: (WarmupExercise) -> Unit = {},
     onCreateWarmupExercise: () -> Unit = {},
-    onWarmupExerciseDelete: (WarmupExercise) -> Unit = {}
+    onWarmupExerciseDelete: (WarmupExercise) -> Unit = {},
+    onCreateExerciseCollection: () -> Unit = {},
+    onExerciseCollectionDelete: (ExerciseCollection) -> Unit = {},
+    onCreateWarmupExerciseCollection: () -> Unit = {},
+    onWarmupExerciseCollectionDelete: (WarmupExerciseCollection) -> Unit = {}
 ) {
     val programs by viewModel.allPrograms.collectAsState(initial = emptyList())
     val exercises by viewModel.allExercises.collectAsState(initial = emptyList())
     val warmups by viewModel.allWarmups.collectAsState(initial = emptyList())
     val warmupExercises by viewModel.allWarmupExercises.collectAsState(initial = emptyList())
-
     var selectedTab by remember { mutableIntStateOf(initialTab) }
+    val exerciseCollections by viewModel.allExerciseCollections.collectAsState(initial = emptyList())
+    val warmupExerciseCollections by viewModel.allWarmupExerciseCollections.collectAsState(initial = emptyList())
 
     Column(
         modifier = Modifier
@@ -103,10 +109,13 @@ fun CatalogScreen(
             )
             1 -> ExercisesList(
                 exercises = exercises,
+                collections = exerciseCollections,
                 useKg = useKg,
                 onExerciseClick = onExerciseClick,
                 onExerciseDelete = onExerciseDelete,
-                onCreateClick = onCreateExercise
+                onCreateClick = onCreateExercise,
+                onCreateCollection = onCreateExerciseCollection,
+                onCollectionDelete = onExerciseCollectionDelete
             )
             2 -> WarmupsList(
                 warmups = warmups,
@@ -116,9 +125,12 @@ fun CatalogScreen(
             )
             3 -> WarmupExercisesList(
                 exercises = warmupExercises,
+                collections = warmupExerciseCollections,
                 onExerciseClick = onWarmupExerciseClick,
                 onExerciseDelete = onWarmupExerciseDelete,
-                onCreateClick = onCreateWarmupExercise
+                onCreateClick = onCreateWarmupExercise,
+                onCreateCollection = onCreateWarmupExerciseCollection,
+                onCollectionDelete = onWarmupExerciseCollectionDelete
             )
         }
     }
@@ -246,54 +258,9 @@ fun ProgramCard(
 
 // ==================== УПРАЖНЕНИЯ ====================
 
-@Composable
-fun ExercisesList(
-    exercises: List<Exercise>,
-    useKg: Boolean = true,
-    onExerciseClick: (Exercise) -> Unit,
-    onExerciseDelete: (Exercise) -> Unit,
-    onCreateClick: () -> Unit
-) {
-    var exerciseToDelete by remember { mutableStateOf<Exercise?>(null) }
-
-    if (exerciseToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { exerciseToDelete = null },
-            title = { Text("Удалить упражнение?", color = TextWhite) },
-            text = { Text("\"${exerciseToDelete?.name}\" будет удалено навсегда", color = TextGray) },
-            confirmButton = {
-                TextButton(onClick = {
-                    exerciseToDelete?.let { onExerciseDelete(it) }
-                    exerciseToDelete = null
-                }) { Text("Удалить", color = Orange) }
-            },
-            dismissButton = {
-                TextButton(onClick = { exerciseToDelete = null }) { Text("Отмена", color = TextGray) }
-            },
-            containerColor = DarkSurface
-        )
-    }
-
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(exercises) { exercise ->
-            ExerciseCard(
-                exercise = exercise,
-                useKg = useKg,
-                onClick = { onExerciseClick(exercise) },
-                onLongClick = { exerciseToDelete = exercise }
-            )
-        }
-        item {
-            Spacer(modifier = Modifier.height(4.dp))
-            CreateButton(text = "Создать упражнение", onClick = onCreateClick)
-        }
-        item { Spacer(modifier = Modifier.height(16.dp)) }
-    }
-}
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ExerciseCard(exercise: Exercise, onClick: () -> Unit, onLongClick: () -> Unit = {}, useKg: Boolean = true) {
+fun ExerciseCard(exercise: Exercise, useKg: Boolean = true, onClick: () -> Unit, onLongClick: () -> Unit = {}) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -313,6 +280,166 @@ fun ExerciseCard(exercise: Exercise, onClick: () -> Unit, onLongClick: () -> Uni
     }
 }
 
+@Composable
+fun ExercisesList(
+    exercises: List<Exercise>,
+    collections: List<ExerciseCollection> = emptyList(),
+    useKg: Boolean = true,
+    onExerciseClick: (Exercise) -> Unit,
+    onExerciseDelete: (Exercise) -> Unit,
+    onCreateClick: () -> Unit,
+    onCreateCollection: () -> Unit = {},
+    onCollectionDelete: (ExerciseCollection) -> Unit = {}
+) {
+    var exerciseToDelete by remember { mutableStateOf<Exercise?>(null) }
+    var collectionToDelete by remember { mutableStateOf<ExerciseCollection?>(null) }
+    var expandedCollections by remember { mutableStateOf(setOf<Long>()) }
+
+    if (exerciseToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { exerciseToDelete = null },
+            title = { Text("Удалить упражнение?", color = TextWhite) },
+            text = { Text("\"${exerciseToDelete?.name}\" будет удалено навсегда", color = TextGray) },
+            confirmButton = {
+                TextButton(onClick = {
+                    exerciseToDelete?.let { onExerciseDelete(it) }
+                    exerciseToDelete = null
+                }) { Text("Удалить", color = Orange) }
+            },
+            dismissButton = {
+                TextButton(onClick = { exerciseToDelete = null }) { Text("Отмена", color = TextGray) }
+            },
+            containerColor = DarkSurface
+        )
+    }
+
+    if (collectionToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { collectionToDelete = null },
+            title = { Text("Удалить коллекцию?", color = TextWhite) },
+            text = { Text("\"${collectionToDelete?.name}\" будет удалена. Упражнения останутся без коллекции.", color = TextGray) },
+            confirmButton = {
+                TextButton(onClick = {
+                    collectionToDelete?.let { onCollectionDelete(it) }
+                    collectionToDelete = null
+                }) { Text("Удалить", color = Orange) }
+            },
+            dismissButton = {
+                TextButton(onClick = { collectionToDelete = null }) { Text("Отмена", color = TextGray) }
+            },
+            containerColor = DarkSurface
+        )
+    }
+
+    val uncategorized = exercises.filter { it.collectionId == null }
+
+    LazyColumn {
+        // Коллекции
+        items(collections) { collection ->
+            val isExpanded = expandedCollections.contains(collection.id)
+            val collectionExercises = exercises.filter { it.collectionId == collection.id }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            CollectionHeader(
+                name = collection.name,
+                count = collectionExercises.size,
+                isExpanded = isExpanded,
+                onClick = {
+                    expandedCollections = if (isExpanded) {
+                        expandedCollections - collection.id
+                    } else {
+                        expandedCollections + collection.id
+                    }
+                },
+                onLongClick = { collectionToDelete = collection }
+            )
+
+            if (isExpanded) {
+                collectionExercises.forEach { exercise ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    ExerciseCard(
+                        exercise = exercise,
+                        useKg = useKg,
+                        onClick = { onExerciseClick(exercise) },
+                        onLongClick = { exerciseToDelete = exercise }
+                    )
+                }
+            }
+        }
+
+        // Упражнения без коллекции
+        if (uncategorized.isNotEmpty()) {
+            if (collections.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Без коллекции", color = TextGray, fontSize = 13.sp)
+                }
+            }
+            items(uncategorized) { exercise ->
+                Spacer(modifier = Modifier.height(8.dp))
+                ExerciseCard(
+                    exercise = exercise,
+                    useKg = useKg,
+                    onClick = { onExerciseClick(exercise) },
+                    onLongClick = { exerciseToDelete = exercise }
+                )
+            }
+        }
+
+        // Кнопки создания
+        item {
+            Spacer(modifier = Modifier.height(12.dp))
+            CreateButton(text = "Создать упражнение", onClick = onCreateClick)
+            Spacer(modifier = Modifier.height(8.dp))
+            CreateButton(text = "Создать коллекцию", onClick = onCreateCollection)
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun CollectionHeader(
+    name: String,
+    count: Int,
+    isExpanded: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(DarkSurface)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = if (isExpanded) "📂" else "📁",
+                    fontSize = 20.sp
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = name,
+                    color = TextWhite,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Text(
+                text = "$count",
+                color = TextGray,
+                fontSize = 14.sp
+            )
+        }
+    }
+}
 // ==================== РАЗМИНКИ ====================
 
 @Composable
@@ -378,11 +505,16 @@ fun WarmupCard(warmup: Warmup, onClick: () -> Unit, onLongClick: () -> Unit) {
 @Composable
 fun WarmupExercisesList(
     exercises: List<WarmupExercise>,
+    collections: List<WarmupExerciseCollection> = emptyList(),
     onExerciseClick: (WarmupExercise) -> Unit,
     onExerciseDelete: (WarmupExercise) -> Unit,
-    onCreateClick: () -> Unit
+    onCreateClick: () -> Unit,
+    onCreateCollection: () -> Unit = {},
+    onCollectionDelete: (WarmupExerciseCollection) -> Unit = {}
 ) {
     var exerciseToDelete by remember { mutableStateOf<WarmupExercise?>(null) }
+    var collectionToDelete by remember { mutableStateOf<WarmupExerciseCollection?>(null) }
+    var expandedCollections by remember { mutableStateOf(setOf<Long>()) }
 
     if (exerciseToDelete != null) {
         AlertDialog(
@@ -402,19 +534,82 @@ fun WarmupExercisesList(
         )
     }
 
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(exercises) { exercise ->
-            WarmupExerciseCard(
-                exercise = exercise,
-                onClick = { onExerciseClick(exercise) },
-                onLongClick = { exerciseToDelete = exercise }
+    if (collectionToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { collectionToDelete = null },
+            title = { Text("Удалить коллекцию?", color = TextWhite) },
+            text = { Text("\"${collectionToDelete?.name}\" будет удалена. Упражнения останутся без коллекции.", color = TextGray) },
+            confirmButton = {
+                TextButton(onClick = {
+                    collectionToDelete?.let { onCollectionDelete(it) }
+                    collectionToDelete = null
+                }) { Text("Удалить", color = Orange) }
+            },
+            dismissButton = {
+                TextButton(onClick = { collectionToDelete = null }) { Text("Отмена", color = TextGray) }
+            },
+            containerColor = DarkSurface
+        )
+    }
+
+    val uncategorized = exercises.filter { it.collectionId == null }
+
+    LazyColumn {
+        items(collections) { collection ->
+            val isExpanded = expandedCollections.contains(collection.id)
+            val collectionExercises = exercises.filter { it.collectionId == collection.id }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            CollectionHeader(
+                name = collection.name,
+                count = collectionExercises.size,
+                isExpanded = isExpanded,
+                onClick = {
+                    expandedCollections = if (isExpanded) {
+                        expandedCollections - collection.id
+                    } else {
+                        expandedCollections + collection.id
+                    }
+                },
+                onLongClick = { collectionToDelete = collection }
             )
+
+            if (isExpanded) {
+                collectionExercises.forEach { exercise ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    WarmupExerciseCard(
+                        exercise = exercise,
+                        onClick = { onExerciseClick(exercise) },
+                        onLongClick = { exerciseToDelete = exercise }
+                    )
+                }
+            }
         }
+
+        if (uncategorized.isNotEmpty()) {
+            if (collections.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Без коллекции", color = TextGray, fontSize = 13.sp)
+                }
+            }
+            items(uncategorized) { exercise ->
+                Spacer(modifier = Modifier.height(8.dp))
+                WarmupExerciseCard(
+                    exercise = exercise,
+                    onClick = { onExerciseClick(exercise) },
+                    onLongClick = { exerciseToDelete = exercise }
+                )
+            }
+        }
+
         item {
-            Spacer(modifier = Modifier.height(4.dp))
-            CreateButton(text = "Создать упр. разминки", onClick = onCreateClick)
+            Spacer(modifier = Modifier.height(12.dp))
+            CreateButton(text = "Создать упражнение разминки", onClick = onCreateClick)
+            Spacer(modifier = Modifier.height(8.dp))
+            CreateButton(text = "Создать коллекцию", onClick = onCreateCollection)
+            Spacer(modifier = Modifier.height(16.dp))
         }
-        item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }
 

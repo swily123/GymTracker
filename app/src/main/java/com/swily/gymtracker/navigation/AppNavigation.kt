@@ -21,6 +21,9 @@ import com.swily.gymtracker.data.model.WarmupExercise
 import com.swily.gymtracker.data.GymDatabase
 import com.swily.gymtracker.WeightUtils
 import androidx.compose.ui.platform.LocalContext
+import com.swily.gymtracker.data.model.ExerciseCollection
+import com.swily.gymtracker.data.model.WarmupExerciseCollection
+import com.swily.gymtracker.screens.TextEditDialog
 
 @Composable
 fun AppNavigation() {
@@ -30,6 +33,8 @@ fun AppNavigation() {
     val useKg = settings?.useKg ?: true
     val navController = rememberNavController()
     val catalogViewModel: CatalogViewModel = viewModel()
+    var showCreateExerciseCollectionDialog by remember { mutableStateOf(false) }
+    var showCreateWarmupCollectionDialog by remember { mutableStateOf(false) }
 
     val tabs = listOf(
         BottomNavItem.Home,
@@ -86,6 +91,34 @@ fun AppNavigation() {
                 }
             },
             containerColor = DarkSurface
+        )
+    }
+
+    if (showCreateExerciseCollectionDialog) {
+        TextEditDialog(
+            title = "Новая коллекция",
+            currentValue = "",
+            onConfirm = { name ->
+                if (name.isNotBlank()) {
+                    catalogViewModel.insertExerciseCollection(ExerciseCollection(name = name))
+                }
+                showCreateExerciseCollectionDialog = false
+            },
+            onDismiss = { showCreateExerciseCollectionDialog = false }
+        )
+    }
+
+    if (showCreateWarmupCollectionDialog) {
+        TextEditDialog(
+            title = "Новая коллекция",
+            currentValue = "",
+            onConfirm = { name ->
+                if (name.isNotBlank()) {
+                    catalogViewModel.insertWarmupExerciseCollection(WarmupExerciseCollection(name = name))
+                }
+                showCreateWarmupCollectionDialog = false
+            },
+            onDismiss = { showCreateWarmupCollectionDialog = false }
         )
     }
 
@@ -179,34 +212,25 @@ fun AppNavigation() {
                     },
                     onWarmupExerciseDelete = { exercise ->
                         catalogViewModel.deleteWarmupExercise(exercise)
+                    },
+
+                    onCreateExerciseCollection = {
+                        showCreateExerciseCollectionDialog = true
+                    },
+                    onExerciseCollectionDelete = { collection ->
+                        catalogViewModel.deleteExerciseCollection(collection)
+                    },
+                    onCreateWarmupExerciseCollection = {
+                        showCreateWarmupCollectionDialog = true
+                    },
+                    onWarmupExerciseCollectionDelete = { collection ->
+                        catalogViewModel.deleteWarmupExerciseCollection(collection)
                     }
                 )
             }
 
             composable(BottomNavItem.Progress.route) { ProgressScreen(useKg = useKg) }
             composable(BottomNavItem.Profile.route) { ProfileScreen(useKg = useKg) }
-
-            composable("exercise_create") {
-                ExerciseEditScreen(
-                    exercise = null,
-                    onSave = { exercise ->
-                        catalogViewModel.insertExercise(exercise)
-                        navController.popBackStack()
-                    },
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            composable("exercise_edit") {
-                ExerciseEditScreen(
-                    exercise = selectedExercise,
-                    onSave = { exercise ->
-                        catalogViewModel.updateExercise(exercise)
-                        navController.popBackStack()
-                    },
-                    onBack = { navController.popBackStack() }
-                )
-            }
 
             composable("program_create") {
                 val exercises by catalogViewModel.allExercises.collectAsState(initial = emptyList())
@@ -273,28 +297,6 @@ fun AppNavigation() {
                 )
             }
 
-            composable("warmup_exercise_create") {
-                WarmupExerciseEditScreen(
-                    warmupExercise = null,
-                    onSave = { exercise ->
-                        catalogViewModel.insertWarmupExercise(exercise)
-                        navController.popBackStack()
-                    },
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
-            composable("warmup_exercise_edit") {
-                WarmupExerciseEditScreen(
-                    warmupExercise = selectedWarmupExercise,
-                    onSave = { exercise ->
-                        catalogViewModel.updateWarmupExercise(exercise)
-                        navController.popBackStack()
-                    },
-                    onBack = { navController.popBackStack() }
-                )
-            }
-
             composable("warmup_create") {
                 val warmupExercises by catalogViewModel.allWarmupExercises.collectAsState(initial = emptyList())
                 WarmupEditScreen(
@@ -350,6 +352,58 @@ fun AppNavigation() {
                     onOpenTimer = {
                         navController.navigate("timer")
                     }
+                )
+            }
+
+            composable("exercise_create") {
+                val collections by catalogViewModel.allExerciseCollections.collectAsState(initial = emptyList())
+                ExerciseEditScreen(
+                    exercise = null,
+                    collections = collections,
+                    onSave = { exercise ->
+                        catalogViewModel.insertExercise(exercise)
+                        navController.popBackStack()
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("exercise_edit") {
+                val collections by catalogViewModel.allExerciseCollections.collectAsState(initial = emptyList())
+                ExerciseEditScreen(
+                    exercise = selectedExercise,
+                    collections = collections,
+                    onSave = { exercise ->
+                        catalogViewModel.updateExercise(exercise)
+                        navController.popBackStack()
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("warmup_exercise_create") {
+                val collections by catalogViewModel.allWarmupExerciseCollections.collectAsState(initial = emptyList())
+                WarmupExerciseEditScreen(
+                    warmupExercise = null,
+                    collections = collections,
+                    onSave = { exercise ->
+                        catalogViewModel.insertWarmupExercise(exercise)
+                        navController.popBackStack()
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("warmup_exercise_edit") {
+                val collections by catalogViewModel.allWarmupExerciseCollections.collectAsState(initial = emptyList())
+                WarmupExerciseEditScreen(
+                    warmupExercise = selectedWarmupExercise,
+                    collections = collections,
+                    onSave = { exercise ->
+                        catalogViewModel.updateWarmupExercise(exercise)
+                        navController.popBackStack()
+                    },
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

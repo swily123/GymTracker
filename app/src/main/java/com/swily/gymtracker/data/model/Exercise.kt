@@ -13,5 +13,6 @@ data class Exercise(
     val defaultReps: Int,
     val defaultWeightKg: Float,
     val muscleGroup: String = "",
-    val tip: String = ""
+    val tip: String = "",
+    val collectionId: Long? = null
 )

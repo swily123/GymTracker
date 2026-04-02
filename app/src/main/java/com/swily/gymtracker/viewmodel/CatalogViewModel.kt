@@ -14,6 +14,8 @@ import com.swily.gymtracker.data.model.WarmupContent
 import com.swily.gymtracker.data.model.WarmupExercise
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.combine
+import com.swily.gymtracker.data.model.ExerciseCollection
+import com.swily.gymtracker.data.model.WarmupExerciseCollection
 
 class CatalogViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -32,8 +34,62 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
     val allPrograms: Flow<List<Program>> = programDao.getAllPrograms()
     val allExercises: Flow<List<Exercise>> = exerciseDao.getAllExercises()
 
-    // --- Упражнения ---
+    private val exerciseCollectionDao = database.exerciseCollectionDao()
+    private val warmupExerciseCollectionDao = database.warmupExerciseCollectionDao()
 
+    val allExerciseCollections: Flow<List<ExerciseCollection>> = exerciseCollectionDao.getAllCollections()
+    val allWarmupExerciseCollections: Flow<List<WarmupExerciseCollection>> = warmupExerciseCollectionDao.getAllCollections()
+
+// --- Коллекции упражнений ---
+
+    fun insertExerciseCollection(collection: ExerciseCollection) {
+        viewModelScope.launch {
+            exerciseCollectionDao.insertCollection(collection)
+        }
+    }
+
+    fun updateExerciseCollection(collection: ExerciseCollection) {
+        viewModelScope.launch {
+            exerciseCollectionDao.updateCollection(collection)
+        }
+    }
+
+    fun deleteExerciseCollection(collection: ExerciseCollection) {
+        viewModelScope.launch {
+            // Убираем привязку у упражнений этой коллекции
+            val exercises = exerciseDao.getAllExercises().first()
+            exercises.filter { it.collectionId == collection.id }.forEach {
+                exerciseDao.updateExercise(it.copy(collectionId = null))
+            }
+            exerciseCollectionDao.deleteCollection(collection)
+        }
+    }
+
+// --- Коллекции упражнений разминки ---
+
+    fun insertWarmupExerciseCollection(collection: WarmupExerciseCollection) {
+        viewModelScope.launch {
+            warmupExerciseCollectionDao.insertCollection(collection)
+        }
+    }
+
+    fun updateWarmupExerciseCollection(collection: WarmupExerciseCollection) {
+        viewModelScope.launch {
+            warmupExerciseCollectionDao.updateCollection(collection)
+        }
+    }
+
+    fun deleteWarmupExerciseCollection(collection: WarmupExerciseCollection) {
+        viewModelScope.launch {
+            val exercises = warmupExerciseDao.getAllWarmupExercises().first()
+            exercises.filter { it.collectionId == collection.id }.forEach {
+                warmupExerciseDao.updateWarmupExercise(it.copy(collectionId = null))
+            }
+            warmupExerciseCollectionDao.deleteCollection(collection)
+        }
+    }
+
+    // --- Упражнения ---
     fun insertExercise(exercise: Exercise) {
         viewModelScope.launch {
             exerciseDao.insertExercise(exercise)
